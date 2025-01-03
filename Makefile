@@ -24,6 +24,8 @@ SHELL = /usr/bin/env bash -o pipefail
 .PHONY: all
 all: build
 
+include custom.mk
+
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
