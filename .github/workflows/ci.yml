@@ -19,7 +19,7 @@ jobs:
       - run: make test
 
   test-e2e:
-    name: Run on Ubuntu
+    name: E2E Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
