@@ -1,12 +1,13 @@
 WORKING_DIRECTORY := $(shell pwd)
 LOCAL_BIN := ${WORKING_DIRECTORY}/bin
 
+include .versions/*.mk
 DEVCTL := ${LOCAL_BIN}/devctl
 
 export GOBIN := ${LOCAL_BIN}
 
 bin/devctl: .versions/devctl
-	go install github.com/unmango/devctl/cmd@v$(shell cat $<)
+	go install github.com/unmango/devctl/cmd@v${DEVCTL_VERSION}
 	mv ${LOCAL_BIN}/cmd $@
 
 bin/kubebuilder: .versions/kubebuilder

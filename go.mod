@@ -1,6 +1,6 @@
 module github.com/unmango/thecluster-operator
 
-go 1.22.0
+go 1.23.4
 
 require (
 	github.com/onsi/ginkgo/v2 v2.22.1
