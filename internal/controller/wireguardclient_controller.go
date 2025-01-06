@@ -53,6 +53,7 @@ type WireguardClientReconciler struct {
 // +kubebuilder:rbac:groups=core.thecluster.io,resources=wireguardclients,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core.thecluster.io,resources=wireguardclients/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core.thecluster.io,resources=wireguardclients/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
 func (r *WireguardClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
