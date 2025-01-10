@@ -60,7 +60,6 @@ func (r *WireguardClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	wg := &corev1alpha1.WireguardClient{}
 	if err := r.Get(ctx, req.NamespacedName, wg); err != nil {
-		log.Info("reading wireguard client resource", "err", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
