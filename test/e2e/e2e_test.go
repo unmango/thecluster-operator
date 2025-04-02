@@ -244,6 +244,17 @@ var _ = Describe("Manager", Ordered, func() {
 		//    fmt.Sprintf(`controller_runtime_reconcile_total{controller="%s",result="success"} 1`,
 		//    strings.ToLower(<Kind>),
 		// ))
+
+		It("should run successfully", func() {
+			By("creating a wireguard client")
+			wd, err := os.Getwd()
+			Expect(err).NotTo(HaveOccurred())
+			cmd := exec.Command("kubectl", "apply", "-f",
+				filepath.Join(wd, "config/samples/core_v1alpha1_wireguardclient.yaml"),
+			)
+			_, err = utils.Run(cmd)
+			Expect(err).NotTo(HaveOccurred(), "Failed to create wireguard client")
+		})
 	})
 })
 
