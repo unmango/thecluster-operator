@@ -247,10 +247,12 @@ var _ = Describe("Manager", Ordered, func() {
 
 		It("should run successfully", func() {
 			By("creating a wireguard client")
+			wd, err := os.Getwd()
+			Expect(err).NotTo(HaveOccurred())
 			cmd := exec.Command("kubectl", "apply", "-f",
-				"config/samples/core_v1alpha1_wireguardclient.yaml",
+				filepath.Join(wd, "config/samples/core_v1alpha1_wireguardclient.yaml"),
 			)
-			_, err := utils.Run(cmd)
+			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create wireguard client")
 		})
 	})
