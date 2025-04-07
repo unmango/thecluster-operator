@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -30,23 +31,16 @@ import (
 	"github.com/unmango/thecluster-operator/test/utils"
 )
 
-// namespace where the project is deployed in
-const namespace = "tmp-system"
-
-// serviceAccountName created for the project
-const serviceAccountName = "tmp-controller-manager"
-
-// metricsServiceName is the name of the metrics service of the project
-const metricsServiceName = "tmp-controller-manager-metrics-service"
-
-// metricsRoleBindingName is the name of the RBAC that will be created to allow get the metrics data
-const metricsRoleBindingName = "tmp-metrics-binding"
+const (
+	namespace              = "tmp-system"
+	serviceAccountName     = "tmp-controller-manager"
+	metricsServiceName     = "tmp-controller-manager-metrics-service"
+	metricsRoleBindingName = "tmp-metrics-binding"
+)
 
 var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
 
-	// Before running the tests, set up the environment by creating the namespace,
-	// installing CRDs, and deploying the controller.
 	BeforeAll(func() {
 		By("creating manager namespace")
 		cmd := exec.Command("kubectl", "create", "ns", namespace)
@@ -64,11 +58,16 @@ var _ = Describe("Manager", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
 	})
 
-	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
-	// and deleting the namespace.
 	AfterAll(func() {
+		cmd := exec.Command("kubectl", "delete", "-f", "config/samples/core_v1alpha1_wireguardclient.yaml")
+		_, _ = utils.Run(cmd)
+
+		By("removing the ClusterRoleBinding for the service account")
+		cmd = exec.Command("kubectl", "delete", "clusterrolebinding", metricsRoleBindingName)
+		_, _ = utils.Run(cmd)
+
 		By("cleaning up the curl pod for metrics")
-		cmd := exec.Command("kubectl", "delete", "pod", "curl-metrics", "-n", namespace)
+		cmd = exec.Command("kubectl", "delete", "pod", "curl-metrics", "-n", namespace)
 		_, _ = utils.Run(cmd)
 
 		By("undeploying the controller-manager")
@@ -84,8 +83,6 @@ var _ = Describe("Manager", Ordered, func() {
 		_, _ = utils.Run(cmd)
 	})
 
-	// After each test, check for failures and collect logs, events,
-	// and pod descriptions for debugging.
 	AfterEach(func() {
 		specReport := CurrentSpecReport()
 		if specReport.Failed() {
@@ -242,18 +239,33 @@ var _ = Describe("Manager", Ordered, func() {
 
 		It("should run successfully", func() {
 			By("creating a wireguard client")
-			wd, err := os.Getwd()
-			Expect(err).NotTo(HaveOccurred())
 			cmd := exec.Command("kubectl", "apply", "-f",
-				filepath.Join(wd, "config/samples/core_v1alpha1_wireguardclient.yaml"),
+				"config/samples/core_v1alpha1_wireguardclient.yaml",
 			)
-			_, err = utils.Run(cmd)
+			_, err := utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create wireguard client")
-			cmd = exec.Command("kubectl", "delete", "-f",
-				filepath.Join(wd, "config/samples/core_v1alpha1_wireguardclient.yaml"),
-			)
-			_, err = utils.Run(cmd)
-			Expect(err).NotTo(HaveOccurred(), "Failed to delete wireguard client")
+
+			By("fetching the pod name")
+			var name string
+			getPodName := func(g Gomega) {
+				cmd := exec.Command("kubectl", "get", "pods",
+					"-o", "jsonpath={.items[*].metadata.name}")
+				name, err = utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				Expect(name).NotTo(BeEmpty())
+				Expect(strings.Fields(name)).To(HaveLen(1))
+			}
+			Eventually(getPodName, 1*time.Minute).Should(Succeed())
+
+			By("waiting for the wireguard pod to start.")
+			verifyDeployment := func(g Gomega) {
+				cmd := exec.Command("kubectl", "get", "pods",
+					"-o", "jsonpath={.status.phase}", name)
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).To(Equal("Running"), "wireguard pod in wrong status")
+			}
+			Eventually(verifyDeployment, 1*time.Minute).Should(Succeed())
 		})
 	})
 })
