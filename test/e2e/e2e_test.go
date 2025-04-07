@@ -254,6 +254,11 @@ var _ = Describe("Manager", Ordered, func() {
 			)
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create wireguard client")
+			cmd = exec.Command("kubectl", "delete", "-f",
+				filepath.Join(wd, "config/samples/core_v1alpha1_wireguardclient.yaml"),
+			)
+			_, err = utils.Run(cmd)
+			Expect(err).NotTo(HaveOccurred(), "Failed to delete wireguard client")
 		})
 	})
 })
