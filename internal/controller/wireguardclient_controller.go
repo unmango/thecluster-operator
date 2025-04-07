@@ -214,6 +214,7 @@ func (r *WireguardClientReconciler) CreateDeployment(ctx context.Context, wg *co
 		{Name: "PUID", Value: strconv.FormatInt(wg.Spec.PUID, 10)},
 		{Name: "PGID", Value: strconv.FormatInt(wg.Spec.PGID, 10)},
 		{Name: "TZ", Value: wg.Spec.TZ},
+		{Name: "S6_READ_ONLY_ROOT", Value: "1"},
 	}
 
 	if len(wg.Spec.AllowedIPs) > 0 {
