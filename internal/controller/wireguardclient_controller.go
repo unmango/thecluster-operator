@@ -53,13 +53,13 @@ type WireguardClientReconciler struct {
 // +kubebuilder:rbac:groups=core.thecluster.io,resources=wireguardclients,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core.thecluster.io,resources=wireguardclients/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core.thecluster.io,resources=wireguardclients/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
 func (r *WireguardClientReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
 	wg := &corev1alpha1.WireguardClient{}
 	if err := r.Get(ctx, req.NamespacedName, wg); err != nil {
-		log.Info("reading wireguard client resource", "err", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -214,6 +214,7 @@ func (r *WireguardClientReconciler) CreateDeployment(ctx context.Context, wg *co
 		{Name: "PUID", Value: strconv.FormatInt(wg.Spec.PUID, 10)},
 		{Name: "PGID", Value: strconv.FormatInt(wg.Spec.PGID, 10)},
 		{Name: "TZ", Value: wg.Spec.TZ},
+		{Name: "S6_READ_ONLY_ROOT", Value: "1"},
 	}
 
 	if len(wg.Spec.AllowedIPs) > 0 {

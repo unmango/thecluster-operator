@@ -199,6 +199,7 @@ var _ = Describe("WireguardClient Controller", func() {
 				corev1.EnvVar{Name: "PUID", Value: "6969"},
 				corev1.EnvVar{Name: "PGID", Value: "4200"},
 				corev1.EnvVar{Name: "TZ", Value: "America/Chicago"},
+				corev1.EnvVar{Name: "S6_READ_ONLY_ROOT", Value: "1"},
 			))
 			Expect(container.Ports).To(ConsistOf(corev1.ContainerPort{
 				ContainerPort: 51820,

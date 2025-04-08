@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wireguardclient-sample
+stringData:
+  wg0: |
+    [Interface]
+    Address = 10.0.0.69/32
+---
+apiVersion: core.thecluster.io/v1alpha1
+kind: WireguardClient
+metadata:
+  name: wireguardclient-sample
+spec:
+  puid: 1001
+  pgid: 1001
+  tz: America/Chicago
+  configs:
+    - name: wg0
+      valueFrom:
+        secretKeyRef:
+          name: wireguardclient-sample
+          key: wg0
