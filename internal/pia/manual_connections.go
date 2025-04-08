@@ -6,22 +6,39 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/unmango/go/option"
 )
 
-var DefaultTokenLocation = "/opt/piavpn-manual/token"
+var (
+	DefaultTokenLocation   = "/opt/piavpn-manual/token"
+	DefaultPreferredRegion = "none"
+)
 
 type Options struct {
-	Client     *http.Client
-	User, Pass string
-	Token      string
+	Client          *http.Client
+	User, Pass      string
+	Token           string
+	PreferredRegion string
 }
 
 type Option func(*Options)
+
+func NewDefaultOptions() *Options {
+	return &Options{
+		Client: http.DefaultClient,
+		User:   os.Getenv("PIA_USER"),
+		Pass:   os.Getenv("PIA_PASS"),
+		Token:  os.Getenv("PIA_TOKEN"),
+
+		PreferredRegion: os.Getenv("PREFERRED_REGION"),
+	}
+}
 
 func WithUser(user string) Option {
 	return func(o *Options) {
@@ -66,7 +83,6 @@ func GetToken(ctx context.Context, options ...Option) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("token request failed: %s", resp.Status)
 	}
@@ -118,9 +134,8 @@ func GetDip(ctx context.Context, dipToken string, options ...Option) (string, er
 	if err != nil {
 		return "", err
 	}
-
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("token request failed: %s", resp.Status)
+		return "", fmt.Errorf("dedicated ip request failed: %s", resp.Status)
 	}
 
 	var dipResp []DipResponse
@@ -135,11 +150,43 @@ func GetDip(ctx context.Context, dipToken string, options ...Option) (string, er
 	return dipResp[0].Ip, nil
 }
 
-func NewDefaultOptions() *Options {
-	return &Options{
-		Client: http.DefaultClient,
-		User:   os.Getenv("PIA_USER"),
-		Pass:   os.Getenv("PIA_PASS"),
-		Token:  os.Getenv("PIA_TOKEN"),
+type Meta struct {
+	Ip string
+}
+
+type Server struct {
+	Meta []Meta
+}
+
+type Region struct {
+	Id          string
+	Name        string
+	PortForward bool
+	Servers     []Server
+	Geo         any // TODO
+}
+
+type RegionResponse struct {
+	Regions []Region
+}
+
+func (opts *Options) allRegionData(ctx context.Context) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET",
+		"https://serverlist.piaservers.net/vpninfo/servers/v6", nil,
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	return opts.Client.Do(req)
+}
+
+func GetRegion(ctx context.Context) (string, error) {
+	return "", nil
+}
+
+func timeRequest(req *http.Request) (time.Duration, error) {
+	trace := &httptrace.ClientTrace{}
+	start := time.Now()
+	return time.Since(start), nil
 }
