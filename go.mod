@@ -183,6 +183,7 @@ require (
 	github.com/nishanths/predeclared v0.2.2 // indirect
 	github.com/nunnatsa/ginkgolinter v0.19.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -288,6 +289,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20250304201544-e5f78fe3ede9 // indirect
 	mvdan.cc/gofumpt v0.7.0 // indirect
 	mvdan.cc/unparam v0.0.0-20250301125049-0df0534333a4 // indirect
+	resty.dev/v3 v3.0.0-beta.2 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 // indirect
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250407161039-6ad5c1dd4418 // indirect
 	sigs.k8s.io/controller-tools v0.17.3 // indirect

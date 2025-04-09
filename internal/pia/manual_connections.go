@@ -8,12 +8,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptrace"
-	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/unmango/go/option"
+	"resty.dev/v3"
 )
 
 var (
@@ -61,41 +60,55 @@ func WithClient(client *http.Client) Option {
 	}
 }
 
-func (opts *Options) generateTokenResponse(ctx context.Context) (*http.Response, error) {
-	form := url.Values{
-		"username": []string{opts.User},
-		"password": []string{opts.Pass},
-	}
-	req, err := http.NewRequestWithContext(ctx, "POST",
-		"https://www.privateinternetaccess.com/api/client/v2/token",
-		strings.NewReader(form.Encode()),
-	)
+func (opts *Options) client() *resty.Client {
+	return resty.NewWithClient(opts.Client)
+}
+
+func (opts *Options) tokenRequest(client *resty.Client) *resty.Request {
+	return client.R().
+		SetURL("https://www.privateinternetaccess.com/api/client/v2/token").
+		SetFormData(map[string]string{
+			"username": opts.User,
+			"password": opts.Pass,
+		})
+}
+
+type TokenResponse struct {
+	Token string `json:"token"`
+}
+
+func (opts *Options) GetToken(client *resty.Client) (*TokenResponse, error) {
+	var result TokenResponse
+
+	res, err := client.R().
+		SetFormData(map[string]string{
+			"username": opts.User,
+			"password": opts.Pass,
+		}).
+		SetResult(&result).
+		Post("https://www.privateinternetaccess.com/api/client/v2/token")
 	if err != nil {
 		return nil, err
 	}
+	if res.IsError() {
+		return nil, fmt.Errorf("token request failed: %s", res.Status())
+	}
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	return opts.Client.Do(req)
+	return &result, nil
 }
 
-func GetToken(ctx context.Context, options ...Option) (string, error) {
-	opts := NewDefaultOptions()
-	option.ApplyAll(opts, options)
-
-	resp, err := opts.generateTokenResponse(ctx)
-	if err != nil {
-		return "", err
+func (opts *Options) AuthHandler(c *resty.Client, r *resty.Request) error {
+	if opts.Token != "" {
+		r.SetAuthToken(opts.Token)
+		return nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("token request failed: %s", resp.Status)
-	}
-
-	var content struct{ Token string }
-	if err = json.NewDecoder(resp.Body).Decode(&content); err != nil {
-		return "", err
+	if res, err := opts.GetToken(c); err != nil {
+		return err
+	} else {
+		r.SetAuthToken(res.Token)
 	}
 
-	return content.Token, nil
+	return nil
 }
 
 type DipRequest struct {
