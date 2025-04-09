@@ -153,7 +153,7 @@ func (r *WireguardClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	deployment := &appsv1.Deployment{}
-	if err := r.Client.Get(ctx, req.NamespacedName, deployment); errors.IsNotFound(err) {
+	if err := r.Get(ctx, req.NamespacedName, deployment); errors.IsNotFound(err) {
 		log.Info("Creating a new deployment", "ns", req.Namespace, "name", req.Name)
 		if err := r.CreateDeployment(ctx, wg); err != nil {
 			log.Error(err, "Failed to create deployment for wireguard client")
