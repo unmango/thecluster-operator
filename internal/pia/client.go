@@ -68,7 +68,7 @@ type ServersResponse struct {
 
 func (c *Client) Servers(ctx context.Context) (*ServersResponse, error) {
 	var result ServersResponse
-	rest := c.client(ctx)
+	rest := resty.NewWithClient(c.http)
 	defer rest.Close()
 
 	res, err := rest.R().
