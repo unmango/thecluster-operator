@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
@@ -21,6 +22,8 @@ var (
 )
 
 type Options struct {
+	log *slog.Logger
+
 	Client          *http.Client
 	User, Pass      string
 	Token           string
@@ -154,7 +157,7 @@ type Meta struct {
 	Ip string
 }
 
-type Server struct {
+type Servers struct {
 	Meta []Meta
 }
 
@@ -162,7 +165,7 @@ type Region struct {
 	Id          string
 	Name        string
 	PortForward bool
-	Servers     []Server
+	Servers     Servers
 	Geo         any // TODO
 }
 
@@ -181,12 +184,78 @@ func (opts *Options) allRegionData(ctx context.Context) (*http.Response, error) 
 	return opts.Client.Do(req)
 }
 
-func GetRegion(ctx context.Context) (string, error) {
+func serverLatency(ctx context.Context, serverIp string) (time.Duration, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET",
+		fmt.Sprintf("http://%s:443", serverIp), nil,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	return timeRequest(req)
+}
+
+type Latency struct {
+	Time       time.Duration
+	ServerIp   string
+	RegionName string
+}
+
+func GetRegion(ctx context.Context, options ...Option) (string, error) {
+	opts := NewDefaultOptions()
+	option.ApplyAll(opts, options)
+
+	resp, err := opts.allRegionData(ctx)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("region data request failed: %s", resp.Status)
+	}
+
+	var regionResp RegionResponse
+	if err = json.NewDecoder(resp.Body).Decode(&regionResp); err != nil {
+		return "", err
+	}
+
+	var latencies []Latency
+	for _, r := range regionResp.Regions {
+		if len(r.Servers.Meta) == 0 {
+			continue
+		}
+
+		ip := r.Servers.Meta[0].Ip
+		time, err := serverLatency(ctx, ip)
+		if err != nil { // Log and ignore?
+			return "", err
+		}
+
+		latencies = append(latencies, Latency{
+			Time:       time,
+			ServerIp:   ip,
+			RegionName: r.Name,
+		})
+	}
+
 	return "", nil
 }
 
 func timeRequest(req *http.Request) (time.Duration, error) {
-	trace := &httptrace.ClientTrace{}
-	start := time.Now()
-	return time.Since(start), nil
+	var start time.Time
+	var connTime time.Duration
+	trace := &httptrace.ClientTrace{
+		GotConn: func(httptrace.GotConnInfo) {
+			connTime = time.Since(start)
+		},
+	}
+
+	req = req.WithContext(
+		httptrace.WithClientTrace(req.Context(), trace),
+	)
+	start = time.Now()
+	if _, err := http.DefaultTransport.RoundTrip(req); err != nil {
+		return 0, err
+	}
+
+	return connTime, nil
 }
