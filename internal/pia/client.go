@@ -1,28 +1,17 @@
 package pia
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/unmango/go/option"
 	"resty.dev/v3"
 )
 
-type Client struct {
-	opts *Options
-}
-
-func NewClient(options ...Option) *Client {
-	opts := NewDefaultOptions()
-	option.ApplyAll(opts, options)
-
-	return &Client{opts: opts}
-}
-
-func (opts *Options) client() *resty.Client {
-	c := resty.NewWithClient(opts.http)
-	c.AddRequestMiddleware(opts.AuthHandler)
-	return c
+func (c *Client) client(ctx context.Context) *resty.Client {
+	return resty.NewWithClient(c.http).
+		AddRequestMiddleware(c.AuthHandler).
+		SetContext(ctx)
 }
 
 type DipRequest struct {
@@ -37,9 +26,12 @@ type DipResponse struct {
 	Id        string
 }
 
-func (opts *Options) GetDIP(client *resty.Client, request *DipRequest) ([]DipResponse, error) {
+func (c *Client) GetDIP(ctx context.Context, request *DipRequest) ([]DipResponse, error) {
 	var result []DipResponse
-	res, err := client.R().
+	rest := c.client(ctx)
+	defer rest.Close()
+
+	res, err := rest.R().
 		SetContentType("application/json").
 		SetBody(request).
 		SetResult(&result).
@@ -70,13 +62,16 @@ type Region struct {
 	Geo         any // TODO
 }
 
-type RegionResponse struct {
+type ServersResponse struct {
 	Regions []Region
 }
 
-func (opts *Options) allRegionData(client *resty.Client) (*RegionResponse, error) {
-	var result RegionResponse
-	res, err := client.R().
+func (c *Client) Servers(ctx context.Context) (*ServersResponse, error) {
+	var result ServersResponse
+	rest := c.client(ctx)
+	defer rest.Close()
+
+	res, err := rest.R().
 		SetResult(&result).
 		Get("https://serverlist.piaservers.net/vpninfo/servers/v6")
 	if err != nil {
@@ -89,8 +84,11 @@ func (opts *Options) allRegionData(client *resty.Client) (*RegionResponse, error
 	return &result, err
 }
 
-func (opts *Options) ConnTime(client *resty.Client, ip string) (time.Duration, error) {
-	res, err := client.R().
+func (c *Client) ConnTime(ctx context.Context, ip string) (time.Duration, error) {
+	rest := resty.New().SetContext(ctx)
+	defer rest.Close()
+
+	res, err := rest.R().
 		EnableTrace().
 		Get(fmt.Sprintf("http://%s:443", ip))
 	if err != nil {

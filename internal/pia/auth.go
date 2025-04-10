@@ -3,11 +3,14 @@ package pia
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"resty.dev/v3"
 )
 
-func AuthMiddleware(opts *Options) resty.RequestMiddleware {
+var tokenKey = "PIA_TOKEN"
+
+func AuthMiddleware(opts *Client) resty.RequestMiddleware {
 	return opts.AuthHandler
 }
 
@@ -15,12 +18,15 @@ type TokenResponse struct {
 	Token string `json:"token"`
 }
 
-func (opts *Options) GetToken(client *resty.Client) (*TokenResponse, error) {
+func (c *Client) GetToken(ctx context.Context) (*TokenResponse, error) {
 	var result TokenResponse
-	res, err := client.R().
+	rest := resty.NewWithClient(c.http).SetContext(ctx)
+	defer rest.Close()
+
+	res, err := rest.R().
 		SetFormData(map[string]string{
-			"username": opts.User,
-			"password": opts.Pass,
+			"username": c.User,
+			"password": c.Pass,
 		}).
 		SetResult(&result).
 		Post("https://www.privateinternetaccess.com/api/client/v2/token")
@@ -34,27 +40,28 @@ func (opts *Options) GetToken(client *resty.Client) (*TokenResponse, error) {
 	return &result, nil
 }
 
-func (c *Client) GetToken(ctx context.Context) (string, error) {
-	rest := resty.NewWithClient(c.opts.http).SetContext(ctx)
-	defer rest.Close()
-
-	if res, err := c.opts.GetToken(rest); err != nil {
-		return "", err
-	} else {
-		return res.Token, nil
+func (client *Client) AuthHandler(c *resty.Client, r *resty.Request) error {
+	tok, found := client.tryGetToken()
+	if !found {
+		if res, err := client.GetToken(r.Context()); err != nil {
+			return err
+		} else {
+			tok = res.Token
+			client.cache.Set(tokenKey, tok, 24*time.Hour)
+		}
 	}
+
+	r.SetAuthToken(tok)
+	return nil
 }
 
-func (opts *Options) AuthHandler(c *resty.Client, r *resty.Request) error {
-	if opts.Token != "" {
-		r.SetAuthToken(opts.Token)
-		return nil
+func (c *Client) tryGetToken() (string, bool) {
+	if c.Token != "" {
+		return c.Token, true
 	}
-	if res, err := opts.GetToken(c); err != nil {
-		return err
+	if tok, ok := c.cache.Get(tokenKey); ok {
+		return tok.(string), true
 	} else {
-		r.SetAuthToken(res.Token)
+		return "", false
 	}
-
-	return nil
 }

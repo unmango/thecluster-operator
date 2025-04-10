@@ -4,18 +4,12 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	"github.com/unmango/go/option"
 )
 
 func GetDip(ctx context.Context, dipToken string, options ...Option) (string, error) {
-	opts := NewDefaultOptions()
-	option.ApplyAll(opts, options)
+	c := NewClient(options...)
 
-	c := opts.client().SetContext(ctx)
-	defer c.Close()
-
-	resp, err := opts.GetDIP(c, &DipRequest{
+	resp, err := c.GetDIP(ctx, &DipRequest{
 		Tokens: []string{dipToken},
 	})
 	if err != nil {
@@ -36,13 +30,9 @@ type Latency struct {
 }
 
 func GetRegion(ctx context.Context, options ...Option) (string, error) {
-	opts := NewDefaultOptions()
-	option.ApplyAll(opts, options)
+	c := NewClient(options...)
 
-	c := opts.client().SetContext(ctx)
-	defer c.Close()
-
-	resp, err := opts.allRegionData(c)
+	resp, err := c.Servers(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -54,7 +44,7 @@ func GetRegion(ctx context.Context, options ...Option) (string, error) {
 		}
 
 		ip := r.Servers.Meta[0].Ip
-		time, err := opts.ConnTime(c, ip)
+		time, err := c.ConnTime(ctx, ip)
 		if err != nil { // Log and ignore?
 			return "", err
 		}
