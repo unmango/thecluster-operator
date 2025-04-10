@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -15,6 +17,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - run: make test
 
@@ -27,6 +30,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Install the latest version of kind
         run: |
@@ -54,6 +58,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - uses: golangci/golangci-lint-action@v7
         with:
