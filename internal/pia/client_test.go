@@ -16,6 +16,6 @@ var _ = Describe("Client", func() {
 		res, err := c.Servers(ctx)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(res).To(BeNil())
+		Expect(len(res.Regions)).To(BeNumerically(">", 1))
 	})
 })
