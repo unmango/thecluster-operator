@@ -46,29 +46,37 @@ func (c *Client) GetDIP(ctx context.Context, request *DipRequest) ([]DipResponse
 	return result, nil
 }
 
-type Meta struct {
-	Ip string
-}
-
-type Servers struct {
-	Meta []Meta
+type Server struct {
+	Ip  string `json:"ip"`
+	Cn  string `json:"cn"`
+	Van bool   `json:"van,omitempty"`
 }
 
 type Region struct {
-	Id          string
-	Name        string
-	PortForward bool
-	Servers     Servers
-	Geo         any // TODO
+	Id          string              `json:"id"`
+	Name        string              `json:"name"`
+	Country     string              `json:"country"`
+	AutoRegion  bool                `json:"auto_region"`
+	Dns         string              `json:"dns"`
+	PortForward bool                `json:"port_forward"`
+	Geo         bool                `json:"geo"`
+	Offline     bool                `json:"offline"`
+	Servers     map[string][]Server `json:"servers"`
+}
+
+type Group struct {
+	Name  string `json:"name"`
+	Ports []int  `json:"ports"`
 }
 
 type ServersResponse struct {
-	Regions []Region
+	Groups  map[string][]Group `json:"groups"`
+	Regions []Region           `json:"regions"`
 }
 
 func (c *Client) Servers(ctx context.Context) (*ServersResponse, error) {
 	var result ServersResponse
-	rest := resty.NewWithClient(c.http)
+	rest := resty.NewWithClient(c.http).SetContext(ctx)
 	defer rest.Close()
 
 	res, err := rest.R().

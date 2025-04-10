@@ -39,19 +39,20 @@ func GetRegion(ctx context.Context, options ...Option) (string, error) {
 
 	var latencies []Latency
 	for _, r := range resp.Regions {
-		if len(r.Servers.Meta) == 0 {
+		meta, ok := r.Servers["meta"]
+		if !ok || len(meta) == 0 {
+			c.log.Warn("no server meta")
 			continue
 		}
 
-		ip := r.Servers.Meta[0].Ip
-		time, err := c.ConnTime(ctx, ip)
+		time, err := c.ConnTime(ctx, meta[0].Ip)
 		if err != nil { // Log and ignore?
 			return "", err
 		}
 
 		latencies = append(latencies, Latency{
 			Time:       time,
-			ServerIp:   ip,
+			ServerIp:   meta[0].Ip,
 			RegionName: r.Name,
 		})
 	}
