@@ -14,11 +14,13 @@ tool (
 require (
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/unmango/go v0.3.0
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.33.0-beta.0
 	k8s.io/client-go v0.32.3
 	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
+	resty.dev/v3 v3.0.0-beta.2
 	sigs.k8s.io/controller-runtime v0.20.4
 )
 
@@ -183,7 +185,6 @@ require (
 	github.com/nishanths/predeclared v0.2.2 // indirect
 	github.com/nunnatsa/ginkgolinter v0.19.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -235,7 +236,6 @@ require (
 	github.com/ultraware/whitespace v0.2.0 // indirect
 	github.com/unmango/aferox v0.1.2 // indirect
 	github.com/unmango/devctl v0.1.7 // indirect
-	github.com/unmango/go v0.3.0 // indirect
 	github.com/uudashr/gocognit v1.2.0 // indirect
 	github.com/uudashr/iface v1.3.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
@@ -289,7 +289,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20250304201544-e5f78fe3ede9 // indirect
 	mvdan.cc/gofumpt v0.7.0 // indirect
 	mvdan.cc/unparam v0.0.0-20250301125049-0df0534333a4 // indirect
-	resty.dev/v3 v3.0.0-beta.2 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 // indirect
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250407161039-6ad5c1dd4418 // indirect
 	sigs.k8s.io/controller-tools v0.17.3 // indirect
