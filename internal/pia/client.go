@@ -31,7 +31,7 @@ type DipResponse struct {
 func (c *Client) GetDIP(ctx context.Context, request *DipRequest) ([]DipResponse, error) {
 	var result []DipResponse
 	rest := c.client(ctx)
-	defer rest.Close()
+	defer c.close(rest)
 
 	res, err := rest.R().
 		SetContentType("application/json").
@@ -78,7 +78,7 @@ type ServersResponse struct {
 
 func (c *Client) Servers(ctx context.Context) (*ServersResponse, error) {
 	rest := resty.NewWithClient(c.http).SetContext(ctx)
-	defer rest.Close()
+	defer c.close(rest)
 
 	res, err := rest.R().
 		Get("https://serverlist.piaservers.net/vpninfo/servers/v6")
@@ -106,7 +106,7 @@ func (c *Client) Servers(ctx context.Context) (*ServersResponse, error) {
 
 func (c *Client) ConnTime(ctx context.Context, ip string) (time.Duration, error) {
 	rest := resty.New().SetContext(ctx)
-	defer rest.Close()
+	defer c.close(rest)
 
 	res, err := rest.R().
 		EnableTrace().
@@ -120,4 +120,10 @@ func (c *Client) ConnTime(ctx context.Context, ip string) (time.Duration, error)
 
 	trace := res.Request.TraceInfo()
 	return trace.ConnTime, nil
+}
+
+func (c *Client) close(rest *resty.Client) {
+	if err := rest.Close(); err != nil {
+		c.log.Warn("error closing client", "err", err)
+	}
 }

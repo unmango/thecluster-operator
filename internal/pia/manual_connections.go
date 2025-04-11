@@ -37,7 +37,7 @@ func GetRegion(ctx context.Context, options ...Option) (string, error) {
 		return "", err
 	}
 
-	var latencies []Latency
+	var lowest Latency
 	for _, r := range resp.Regions {
 		meta, ok := r.Servers["meta"]
 		if !ok || len(meta) == 0 {
@@ -50,12 +50,14 @@ func GetRegion(ctx context.Context, options ...Option) (string, error) {
 			return "", err
 		}
 
-		latencies = append(latencies, Latency{
-			Time:       time,
-			ServerIp:   meta[0].Ip,
-			RegionName: r.Name,
-		})
+		if time < lowest.Time {
+			lowest = Latency{
+				Time:       time,
+				ServerIp:   meta[0].Ip,
+				RegionName: r.Name,
+			}
+		}
 	}
 
-	return "", nil
+	return lowest.RegionName, nil
 }

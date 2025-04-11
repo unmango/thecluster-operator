@@ -21,7 +21,7 @@ type TokenResponse struct {
 func (c *Client) GetToken(ctx context.Context) (*TokenResponse, error) {
 	var result TokenResponse
 	rest := resty.NewWithClient(c.http).SetContext(ctx)
-	defer rest.Close()
+	defer c.close(rest)
 
 	res, err := rest.R().
 		SetFormData(map[string]string{
