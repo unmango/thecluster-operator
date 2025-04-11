@@ -1,7 +1,9 @@
 package pia
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -75,18 +77,28 @@ type ServersResponse struct {
 }
 
 func (c *Client) Servers(ctx context.Context) (*ServersResponse, error) {
-	var result ServersResponse
 	rest := resty.NewWithClient(c.http).SetContext(ctx)
 	defer rest.Close()
 
 	res, err := rest.R().
-		SetResult(&result).
 		Get("https://serverlist.piaservers.net/vpninfo/servers/v6")
 	if err != nil {
 		return nil, err
 	}
 	if res.IsError() {
 		return nil, fmt.Errorf("servers request failed: %s", res.Status())
+	}
+
+	// Skip the weird b64 thing at the end of the response
+	r := bufio.NewReader(res.Body)
+	data, err := r.ReadBytes('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	var result ServersResponse
+	if err = json.Unmarshal(data, &result); err != nil {
+		return nil, err
 	}
 
 	return &result, err
