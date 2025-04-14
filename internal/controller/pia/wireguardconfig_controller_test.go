@@ -25,6 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	piav1alpha1 "github.com/unmango/thecluster-operator/api/pia/v1alpha1"
@@ -32,13 +34,17 @@ import (
 
 var _ = Describe("WireguardConfig Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+		const (
+			resourceName = "test-resource"
+			piaUser      = "test-user"
+			piaPass      = "test-password"
+		)
 
 		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
 		wireguardconfig := &piav1alpha1.WireguardConfig{}
 
@@ -58,7 +64,6 @@ var _ = Describe("WireguardConfig Controller", func() {
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &piav1alpha1.WireguardConfig{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -66,6 +71,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 			By("Cleanup the specific resource instance WireguardConfig")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
+
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &WireguardConfigReconciler{
@@ -77,8 +83,56 @@ var _ = Describe("WireguardConfig Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			job := &batchv1.Job{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, typeNamespacedName, job)
+			}).Should(Succeed())
+
+			Expect(job.OwnerReferences).To(ConsistOf(And(
+				HaveField("Kind", "WireguardConfig"),
+				HaveField("Name", resourceName),
+			)))
+
+			Expect(job.Spec.Selector.MatchLabels).To(And(
+				HaveKeyWithValue("app.kubernetes.io/name", "wireguard"),
+				HaveKeyWithValue("app.kubernetes.io/version", "latest"),
+				HaveKeyWithValue("app.kubernetes.io/managed-by", "WireguardConfigController"),
+			))
+			Expect(job.Spec.Template.Labels).To(And(
+				HaveKeyWithValue("app.kubernetes.io/name", "wireguard"),
+				HaveKeyWithValue("app.kubernetes.io/version", "latest"),
+				HaveKeyWithValue("app.kubernetes.io/managed-by", "WireguardConfigController"),
+			))
+
+			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(2))
+			container := job.Spec.Template.Spec.Containers[0]
+			Expect(container.Name).To(Equal("get-token"))
+			Expect(container.Image).To(Equal("unstoppablemango/pia-manual-connections:latest"))
+			Expect(container.Command).To(ConsistOf("/src/get_token.sh"))
+			Expect(container.Env).To(ConsistOf(
+				corev1.EnvVar{Name: "PIA_USER", Value: piaUser},
+				corev1.EnvVar{Name: "PIA_PASS", Value: piaPass},
+			))
+
+			container = job.Spec.Template.Spec.Containers[1]
+			Expect(container.Name).To(Equal("get-region"))
+			Expect(container.Image).To(Equal("unstoppablemango/pia-manual-connections:latest"))
+			Expect(container.Command).To(ConsistOf("/src/get_region.sh"))
+			Expect(container.Env).To(ConsistOf(
+				corev1.EnvVar{Name: "VPN_PROTOCOL", Value: "no"},
+				// Any non-empty value so the script doesn't attempt to authenticate
+				corev1.EnvVar{Name: "PIA_TOKEN", Value: "ignore"},
+			))
+
+			// TODO: WG connect script env vars
+			Expect(container.Env).To(ConsistOf(
+				corev1.EnvVar{Name: "PIA_CONNECT", Value: "false"},
+				corev1.EnvVar{Name: "WG_SERVER_IP", Value: "TODO"},
+				corev1.EnvVar{Name: "WG_HOSTNAME", Value: "TODO"},
+				corev1.EnvVar{Name: "PIA_TOKEN", Value: "TODO"},
+				corev1.EnvVar{Name: "PIA_PF", Value: "TODO"},
+			))
 		})
 	})
 })

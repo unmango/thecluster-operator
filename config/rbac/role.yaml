@@ -42,3 +42,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - pia.thecluster.io
+  resources:
+  - wireguardconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - pia.thecluster.io
+  resources:
+  - wireguardconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - pia.thecluster.io
+  resources:
+  - wireguardconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
