@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	corev1alpha1 "github.com/unmango/thecluster-operator/api/v1alpha1"
+	corev1alpha1 "github.com/unmango/thecluster-operator/api/core/v1alpha1"
 )
 
 var (
