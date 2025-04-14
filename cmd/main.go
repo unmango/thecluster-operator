@@ -36,7 +36,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	corev1alpha1 "github.com/unmango/thecluster-operator/api/core/v1alpha1"
+	piav1alpha1 "github.com/unmango/thecluster-operator/api/pia/v1alpha1"
 	"github.com/unmango/thecluster-operator/internal/controller/core"
+	piacontroller "github.com/unmango/thecluster-operator/internal/controller/pia"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -49,6 +51,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(piav1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -147,6 +150,13 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WireguardClient")
+		os.Exit(1)
+	}
+	if err = (&piacontroller.WireguardConfigReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "WireguardConfig")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

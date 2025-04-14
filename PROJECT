@@ -18,4 +18,13 @@ resources:
   kind: WireguardClient
   path: github.com/unstoppablemango/the-cluster/operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: thecluster.io
+  group: pia
+  kind: WireguardConfig
+  path: github.com/unmango/thecluster-operator/api/pia/v1alpha1
+  version: v1alpha1
 version: "3"
