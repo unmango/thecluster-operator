@@ -35,8 +35,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	corev1alpha1 "github.com/unmango/thecluster-operator/api/v1alpha1"
-	"github.com/unmango/thecluster-operator/internal/controller"
+	corev1alpha1 "github.com/unmango/thecluster-operator/api/core/v1alpha1"
+	"github.com/unmango/thecluster-operator/internal/controller/core"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -142,7 +142,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.WireguardClientReconciler{
+	if err = (&core.WireguardClientReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
