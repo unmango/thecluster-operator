@@ -56,7 +56,14 @@ var _ = Describe("WireguardConfig Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: piav1alpha1.WireguardConfigSpec{
+						Username: piav1alpha1.WireguardClientConfigValue{
+							Value: piaUser,
+						},
+						Password: piav1alpha1.WireguardClientConfigValue{
+							Value: piaPass,
+						},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -83,9 +90,13 @@ var _ = Describe("WireguardConfig Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
+			podName := types.NamespacedName{
+				Namespace: typeNamespacedName.Namespace,
+				Name:      "generate-config",
+			}
 			pod := &corev1.Pod{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, typeNamespacedName, pod)
+				return k8sClient.Get(ctx, podName, pod)
 			}).Should(Succeed())
 
 			Expect(pod.OwnerReferences).To(ConsistOf(And(
@@ -103,30 +114,31 @@ var _ = Describe("WireguardConfig Controller", func() {
 			))
 
 			Expect(pod.Spec.Containers).To(ConsistOf(
-				corev1.Container{
-					Name:    "generate-config",
-					Image:   "unstoppablemango/pia-manual-connections:latest",
-					Command: []string{"/src/connect_to_wireguard_with_token.sh"},
-					Env: []corev1.EnvVar{
+				And(
+					HaveField("Name", "generate-config"),
+					HaveField("Image", "unstoppablemango/pia-manual-connections:v0.1.0-pia2r0"),
+					HaveField("Command", []string{"/src/connect_to_wireguard_with_token.sh"}),
+					HaveField("Env", []corev1.EnvVar{
 						{Name: "PIA_USER", Value: piaUser},
 						{Name: "PIA_PASS", Value: piaPass},
 						{Name: "PIA_CONNECT", Value: "false"},
 						{Name: "PIA_PF", Value: "false"},
-					},
-					VolumeMounts: []corev1.VolumeMount{{
+					}),
+					HaveField("VolumeMounts", []corev1.VolumeMount{{
 						Name:      "results",
 						MountPath: "/opt/piavpn-manual",
-					}},
-				},
-				corev1.Container{
-					Name:    "results",
-					Image:   "busybox:latest",
-					Command: []string{"sleep", "infinity"},
-					VolumeMounts: []corev1.VolumeMount{{
+					}}),
+				),
+				And(
+					HaveField("Name", "results"),
+					HaveField("Image", "busybox:latest"),
+					HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
+					HaveField("VolumeMounts", []corev1.VolumeMount{{
 						Name:      "results",
+						ReadOnly:  true,
 						MountPath: "/out",
-					}},
-				},
+					}}),
+				),
 			))
 		})
 	})

@@ -94,6 +94,9 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 
 		r.InitGenPod(genPod, wg)
+		if err = ctrl.SetControllerReference(wg, genPod, r.Scheme); err != nil {
+			return ctrl.Result{}, err
+		}
 		if err = r.Create(ctx, genPod); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -105,6 +108,41 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 func (r *WireguardConfigReconciler) InitGenPod(p *corev1.Pod, c *piav1alpha1.WireguardConfig) {
 	p.Name = "generate-config"
 	p.Namespace = c.Namespace
+	p.Spec = corev1.PodSpec{
+		Containers: []corev1.Container{
+			{
+				Name:    "generate-config",
+				Image:   "unstoppablemango/pia-manual-connections:v0.1.0-pia2r0",
+				Command: []string{"/src/connect_to_wireguard_with_token.sh"},
+				Env: []corev1.EnvVar{
+					{Name: "PIA_USER", Value: c.Spec.Username.Value},
+					{Name: "PIA_PASS", Value: c.Spec.Password.Value},
+					{Name: "PIA_CONNECT", Value: "false"},
+					{Name: "PIA_PF", Value: "false"},
+				},
+				VolumeMounts: []corev1.VolumeMount{{
+					Name:      "results",
+					MountPath: "/opt/piavpn-manual",
+				}},
+			},
+			{
+				Name:    "results",
+				Image:   "busybox:latest",
+				Command: []string{"sh", "-c", "sleep infinity"},
+				VolumeMounts: []corev1.VolumeMount{{
+					Name:      "results",
+					ReadOnly:  true,
+					MountPath: "/out",
+				}},
+			},
+		},
+		Volumes: []corev1.Volume{{
+			Name: "results",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}},
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
