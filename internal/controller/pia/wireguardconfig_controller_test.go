@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -84,54 +83,50 @@ var _ = Describe("WireguardConfig Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			job := &batchv1.Job{}
+			pod := &corev1.Pod{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, typeNamespacedName, job)
+				return k8sClient.Get(ctx, typeNamespacedName, pod)
 			}).Should(Succeed())
 
-			Expect(job.OwnerReferences).To(ConsistOf(And(
+			Expect(pod.OwnerReferences).To(ConsistOf(And(
 				HaveField("Kind", "WireguardConfig"),
 				HaveField("Name", resourceName),
 			)))
 
-			Expect(job.Spec.Selector.MatchLabels).To(And(
-				HaveKeyWithValue("app.kubernetes.io/name", "wireguard"),
-				HaveKeyWithValue("app.kubernetes.io/version", "latest"),
-				HaveKeyWithValue("app.kubernetes.io/managed-by", "WireguardConfigController"),
-			))
-			Expect(job.Spec.Template.Labels).To(And(
-				HaveKeyWithValue("app.kubernetes.io/name", "wireguard"),
-				HaveKeyWithValue("app.kubernetes.io/version", "latest"),
-				HaveKeyWithValue("app.kubernetes.io/managed-by", "WireguardConfigController"),
+			Expect(pod.Spec.Volumes).To(ConsistOf(
+				corev1.Volume{
+					Name: "results",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
 			))
 
-			Expect(job.Spec.Template.Spec.Containers).To(HaveLen(2))
-			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.Name).To(Equal("get-token"))
-			Expect(container.Image).To(Equal("unstoppablemango/pia-manual-connections:latest"))
-			Expect(container.Command).To(ConsistOf("/src/get_token.sh"))
-			Expect(container.Env).To(ConsistOf(
-				corev1.EnvVar{Name: "PIA_USER", Value: piaUser},
-				corev1.EnvVar{Name: "PIA_PASS", Value: piaPass},
-			))
-
-			container = job.Spec.Template.Spec.Containers[1]
-			Expect(container.Name).To(Equal("get-region"))
-			Expect(container.Image).To(Equal("unstoppablemango/pia-manual-connections:latest"))
-			Expect(container.Command).To(ConsistOf("/src/get_region.sh"))
-			Expect(container.Env).To(ConsistOf(
-				corev1.EnvVar{Name: "VPN_PROTOCOL", Value: "no"},
-				// Any non-empty value so the script doesn't attempt to authenticate
-				corev1.EnvVar{Name: "PIA_TOKEN", Value: "ignore"},
-			))
-
-			// TODO: WG connect script env vars
-			Expect(container.Env).To(ConsistOf(
-				corev1.EnvVar{Name: "PIA_CONNECT", Value: "false"},
-				corev1.EnvVar{Name: "WG_SERVER_IP", Value: "TODO"},
-				corev1.EnvVar{Name: "WG_HOSTNAME", Value: "TODO"},
-				corev1.EnvVar{Name: "PIA_TOKEN", Value: "TODO"},
-				corev1.EnvVar{Name: "PIA_PF", Value: "TODO"},
+			Expect(pod.Spec.Containers).To(ConsistOf(
+				corev1.Container{
+					Name:    "generate-config",
+					Image:   "unstoppablemango/pia-manual-connections:latest",
+					Command: []string{"/src/connect_to_wireguard_with_token.sh"},
+					Env: []corev1.EnvVar{
+						{Name: "PIA_USER", Value: piaUser},
+						{Name: "PIA_PASS", Value: piaPass},
+						{Name: "PIA_CONNECT", Value: "false"},
+						{Name: "PIA_PF", Value: "false"},
+					},
+					VolumeMounts: []corev1.VolumeMount{{
+						Name:      "results",
+						MountPath: "/opt/piavpn-manual",
+					}},
+				},
+				corev1.Container{
+					Name:    "results",
+					Image:   "busybox:latest",
+					Command: []string{"sleep", "infinity"},
+					VolumeMounts: []corev1.VolumeMount{{
+						Name:      "results",
+						MountPath: "/out",
+					}},
+				},
 			))
 		})
 	})

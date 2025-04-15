@@ -17,25 +17,25 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type WireguardClientConfigValue struct {
+	Value           string                       `json:"value,omitempty"`
+	ConfigMapKeyRef *corev1.ConfigMapKeySelector `json:"configMapRef,omitempty"`
+	SecretKeyRef    *corev1.SecretKeySelector    `json:"secretKeyRef,omitempty"`
+}
 
 // WireguardConfigSpec defines the desired state of WireguardConfig.
 type WireguardConfigSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of WireguardConfig. Edit wireguardconfig_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Username WireguardClientConfigValue `json:"username"`
+	Password WireguardClientConfigValue `json:"password"`
 }
 
 // WireguardConfigStatus defines the observed state of WireguardConfig.
 type WireguardConfigStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true
