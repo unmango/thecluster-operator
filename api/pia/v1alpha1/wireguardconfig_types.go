@@ -23,7 +23,7 @@ import (
 
 type WireguardClientConfigValue struct {
 	Value           string                       `json:"value,omitempty"`
-	ConfigMapKeyRef *corev1.ConfigMapKeySelector `json:"configMapRef,omitempty"`
+	ConfigMapKeyRef *corev1.ConfigMapKeySelector `json:"configMapKeyRef,omitempty"`
 	SecretKeyRef    *corev1.SecretKeySelector    `json:"secretKeyRef,omitempty"`
 }
 

@@ -41,7 +41,7 @@ spec:
             properties:
               password:
                 properties:
-                  configMapRef:
+                  configMapKeyRef:
                     description: Selects a key from a ConfigMap.
                     properties:
                       key:
@@ -93,7 +93,7 @@ spec:
                 type: object
               username:
                 properties:
-                  configMapRef:
+                  configMapKeyRef:
                     description: Selects a key from a ConfigMap.
                     properties:
                       key:
