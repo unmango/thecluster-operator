@@ -1,5 +1,9 @@
 IMG ?= controller:latest
+
 ENVTEST_K8S_VERSION = 1.31.0
+
+# renovate: datasource=docker depName=curlimages/curl
+export CURLIMAGES_CURL_VERSION := 7.78.0
 
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -49,11 +53,7 @@ test: manifests generate fmt vet
 
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet
-	@command -v kind >/dev/null 2>&1 || { \
-		echo "Kind is not installed. Please install Kind manually."; \
-		exit 1; \
-	}
-	@kind get clusters | grep -q 'kind' || { \
+	@$(KIND) get clusters | grep -q 'thecluster-operator' || { \
 		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
 		exit 1; \
 	}
