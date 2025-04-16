@@ -25,7 +25,7 @@ import (
 // the WireguardClientConfig
 type WireguardClientConfigSource struct {
 	// A reference to a config map key that contains a wireguard client configuration
-	ConfigMapKeyRef *corev1.ConfigMapKeySelector `json:"configMapRef,omitempty"`
+	ConfigMapKeyRef *corev1.ConfigMapKeySelector `json:"configMapKeyRef,omitempty"`
 
 	// A reference to a secret key that contains a wireguard client configuration
 	SecretKeyRef *corev1.SecretKeySelector `json:"secretKeyRef,omitempty"`
