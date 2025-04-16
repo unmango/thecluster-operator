@@ -3,7 +3,9 @@ IMG ?= controller:latest
 ENVTEST_K8S_VERSION = 1.31.0
 
 # renovate: datasource=docker depName=curlimages/curl
-export CURLIMAGES_CURL_VERSION := 7.78.0
+CURLIMAGES_CURL_VERSION := 7.78.0
+
+export CURLIMAGES_CURL_VERSION
 
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
