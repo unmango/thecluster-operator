@@ -63,7 +63,7 @@ spec:
                       description: An external source for the client configuration
                         values
                       properties:
-                        configMapRef:
+                        configMapKeyRef:
                           description: A reference to a config map key that contains
                             a wireguard client configuration
                           properties:
