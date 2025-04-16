@@ -32,14 +32,12 @@ import (
 )
 
 var _ = Describe("WireguardConfig Controller", func() {
-	Context("When reconciling a resource", func() {
+	Context("When reconciling a resource", func(ctx context.Context) {
 		const (
 			resourceName = "test-resource"
 			piaUser      = "test-user"
 			piaPass      = "test-password"
 		)
-
-		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
