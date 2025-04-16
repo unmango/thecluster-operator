@@ -262,6 +262,37 @@ var _ = Describe("Manager", Ordered, func() {
 			}
 			Eventually(verifyDeployment, 1*time.Minute).Should(Succeed())
 		})
+
+		It("should create a wireguard config", func() {
+			By("creating a wireguard config")
+			cmd := exec.Command("kubectl", "apply", "-f",
+				"config/samples/pia_v1alpha1_wireguardconfig.yaml",
+			)
+			_, err := utils.Run(cmd)
+			Expect(err).NotTo(HaveOccurred(), "Failed to create wireguard config")
+
+			By("fetching the pod name")
+			var name string
+			getPodName := func(g Gomega) {
+				cmd := exec.Command("kubectl", "get", "pods",
+					"-o", "jsonpath={.items[*].metadata.name}")
+				name, err = utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				Expect(name).NotTo(BeEmpty())
+				Expect(strings.Fields(name)).To(HaveLen(1))
+			}
+			Eventually(getPodName, 1*time.Minute).Should(Succeed())
+
+			By("waiting for the generate pod to start.")
+			verifyDeployment := func(g Gomega) {
+				cmd := exec.Command("kubectl", "get", "pods",
+					"-o", "jsonpath={.status.phase}", name)
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).To(Equal("Running"), "generate pod in wrong status")
+			}
+			Eventually(verifyDeployment, 1*time.Minute).Should(Succeed())
+		})
 	})
 })
 
