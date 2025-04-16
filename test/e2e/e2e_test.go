@@ -232,16 +232,7 @@ var _ = Describe("Manager", Ordered, func() {
 
 		// +kubebuilder:scaffold:e2e-webhooks-checks
 
-		// TODO: Customize the e2e test suite with scenarios specific to your project.
-		// Consider applying sample/CR(s) and check their status and/or verifying
-		// the reconciliation by using the metrics, i.e.:
-		// metricsOutput := getMetricsOutput()
-		// Expect(metricsOutput).To(ContainSubstring(
-		//    fmt.Sprintf(`controller_runtime_reconcile_total{controller="%s",result="success"} 1`,
-		//    strings.ToLower(<Kind>),
-		// ))
-
-		It("should run successfully", func() {
+		It("should create a wireguard client", func() {
 			By("creating a wireguard client")
 			cmd := exec.Command("kubectl", "apply", "-f",
 				"config/samples/core_v1alpha1_wireguardclient.yaml",
