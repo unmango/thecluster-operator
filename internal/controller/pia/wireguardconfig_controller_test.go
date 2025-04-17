@@ -17,8 +17,6 @@ limitations under the License.
 package pia
 
 import (
-	"context"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,7 +30,7 @@ import (
 )
 
 var _ = Describe("WireguardConfig Controller", func() {
-	Context("When reconciling a resource", func(ctx context.Context) {
+	Context("When reconciling a resource", func() {
 		const (
 			resourceName = "test-resource"
 			piaUser      = "test-user"
@@ -111,6 +109,25 @@ var _ = Describe("WireguardConfig Controller", func() {
 				},
 			))
 
+			Expect(pod.Spec.InitContainers).To(ConsistOf(And(
+				HaveField("Name", "setup"),
+				HaveField("Image", "unstoppablemango/pia-manual-connections:v0.1.0-pia2r0"),
+				HaveField("Env", []corev1.EnvVar{
+					{Name: "PIA_USER", Value: piaUser},
+					{Name: "PIA_PASS", Value: piaPass},
+					{Name: "PIA_PF", Value: "false"},
+					{Name: "PIA_CONNECT", Value: "false"},
+					{Name: "VPN_PROTOCOL", Value: "no"},
+					{Name: "DISABLE_IPV6", Value: "no"},
+					{Name: "DIP_TOKEN", Value: "no"},
+					{Name: "AUTOCONNECT", Value: "true"},
+				}),
+				HaveField("VolumeMounts", []corev1.VolumeMount{{
+					Name:      "results",
+					MountPath: "/out",
+				}}),
+			)))
+
 			Expect(pod.Spec.Containers).To(ConsistOf(
 				And(
 					HaveField("Name", "generate-config"),
@@ -119,12 +136,16 @@ var _ = Describe("WireguardConfig Controller", func() {
 					HaveField("Env", []corev1.EnvVar{
 						{Name: "PIA_USER", Value: piaUser},
 						{Name: "PIA_PASS", Value: piaPass},
-						{Name: "PIA_CONNECT", Value: "false"},
 						{Name: "PIA_PF", Value: "false"},
+						{Name: "PIA_CONNECT", Value: "false"},
+						{Name: "VPN_PROTOCOL", Value: "wireguard"},
+						{Name: "DISABLE_IPV6", Value: "no"},
+						{Name: "DIP_TOKEN", Value: "no"},
+						{Name: "AUTOCONNECT", Value: "true"},
 					}),
 					HaveField("VolumeMounts", []corev1.VolumeMount{{
 						Name:      "results",
-						MountPath: "/opt/piavpn-manual",
+						MountPath: "/out",
 					}}),
 				),
 				And(

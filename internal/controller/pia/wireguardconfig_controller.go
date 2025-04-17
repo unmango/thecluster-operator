@@ -111,18 +111,21 @@ func (r *WireguardConfigReconciler) InitGenPod(p *corev1.Pod, c *piav1alpha1.Wir
 	p.Spec = corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
-				Name:    "generate-config",
-				Image:   "unstoppablemango/pia-manual-connections:v0.1.0-pia2r0",
-				Command: []string{"/src/connect_to_wireguard_with_token.sh"},
+				Name:  "generate-config",
+				Image: "unstoppablemango/pia-manual-connections:v0.1.0-pia2r0",
 				Env: []corev1.EnvVar{
 					{Name: "PIA_USER", Value: c.Spec.Username.Value},
 					{Name: "PIA_PASS", Value: c.Spec.Password.Value},
-					{Name: "PIA_CONNECT", Value: "false"},
 					{Name: "PIA_PF", Value: "false"},
+					{Name: "PIA_CONNECT", Value: "false"},
+					{Name: "VPN_PROTOCOL", Value: "wireguard"},
+					{Name: "DISABLE_IPV6", Value: "no"},
+					{Name: "DIP_TOKEN", Value: "no"},
+					{Name: "AUTOCONNECT", Value: "true"},
 				},
 				VolumeMounts: []corev1.VolumeMount{{
 					Name:      "results",
-					MountPath: "/opt/piavpn-manual",
+					MountPath: "/etc/wireguard",
 				}},
 			},
 			{

@@ -250,15 +250,28 @@ var _ = Describe("Manager", Ordered, func() {
 			}
 			Eventually(verifyPod, 1*time.Minute).Should(Succeed())
 
-			By("ensuring the pod does not error")
+			By("waiting for the pod to be ready")
 			containersReady := func(g Gomega) {
 				cmd := exec.Command("kubectl", "get", "pods",
-					"-o", "jsonpath={.status.conditions[?(@.type=='ContainersReady')].status}")
+					"-o", `jsonpath={.status.conditions[?(@.type=="ContainersReady")].status}`,
+					"generate-config")
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).To(Equal("True"))
 			}
+			Eventually(containersReady).Should(Succeed())
 			Consistently(containersReady).Should(Succeed())
+
+			By("waiting for the config to be generated")
+			copyConfig := func(g Gomega) {
+				cmd := exec.Command("kubectl", "exec",
+					"generate-config", "-c", "results",
+					"--", "cat", "/out/pia.conf")
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).NotTo(ContainSubstring("No such file or directory"))
+			}
+			Eventually(copyConfig, 1*time.Minute).Should(Succeed())
 		})
 
 		It("should create a wireguard client", func() {
@@ -273,7 +286,7 @@ var _ = Describe("Manager", Ordered, func() {
 			var name string
 			getPodName := func(g Gomega) {
 				cmd := exec.Command("kubectl", "get", "pods",
-					"-l", "kubernetes.io/app=wireguard",
+					"-l", "app.kubernetes.io/name=wireguard",
 					"-o", "jsonpath={.items[*].metadata.name}")
 				name, err = utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
