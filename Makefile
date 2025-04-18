@@ -33,11 +33,12 @@ help:
 
 ##@ Development
 
-.PHONY: manifests
 manifests:
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-.PHONY: generate
+helm: manifests
+	$(KUBEBUILDER) edit --plugins=helm/v1-alpha
+
 generate:
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 

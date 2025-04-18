@@ -1,0 +1,88 @@
+{{- if .Values.rbac.enable }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: thecluster-operator-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - pods
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - pia.thecluster.io
+  resources:
+  - wireguardconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - pia.thecluster.io
+  resources:
+  - wireguardconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - pia.thecluster.io
+  resources:
+  - wireguardconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
+{{- end -}}
