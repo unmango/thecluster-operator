@@ -1,5 +1,3 @@
-include .versions/*.mk
-
 DEVCTL      := go tool devctl
 KUBEBUILDER := go tool kubebuilder
 KIND        := go tool kind
