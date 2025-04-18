@@ -6,6 +6,8 @@ domain: thecluster.io
 layout:
 - go.kubebuilder.io/v4
 multigroup: true
+plugins:
+  helm.kubebuilder.io/v1-alpha: {}
 projectName: thecluster-operator
 repo: github.com/unmango/thecluster-operator
 resources:
