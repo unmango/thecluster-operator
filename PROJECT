@@ -18,7 +18,7 @@ resources:
   domain: thecluster.io
   group: core
   kind: WireguardClient
-  path: github.com/unstoppablemango/the-cluster/operator/api/v1alpha1
+  path: github.com/unmango/thecluster-operator/api/core/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
