@@ -13,15 +13,13 @@ tool (
 )
 
 require (
+	github.com/a8m/envsubst v1.4.3
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
-	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/unmango/go v0.3.0
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.33.0-beta.0
 	k8s.io/client-go v0.32.3
 	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
-	resty.dev/v3 v3.0.0-beta.2
 	sigs.k8s.io/controller-runtime v0.20.4
 )
 
@@ -242,6 +240,7 @@ require (
 	github.com/ultraware/whitespace v0.2.0 // indirect
 	github.com/unmango/aferox v0.1.2 // indirect
 	github.com/unmango/devctl v0.1.7 // indirect
+	github.com/unmango/go v0.3.0 // indirect
 	github.com/uudashr/gocognit v1.2.0 // indirect
 	github.com/uudashr/iface v1.3.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect

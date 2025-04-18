@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- core_v1alpha1_wireguardclient.yaml
+- pia_v1alpha1_wireguardconfig.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a8m/envsubst"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -232,16 +234,51 @@ var _ = Describe("Manager", Ordered, func() {
 
 		// +kubebuilder:scaffold:e2e-webhooks-checks
 
-		// TODO: Customize the e2e test suite with scenarios specific to your project.
-		// Consider applying sample/CR(s) and check their status and/or verifying
-		// the reconciliation by using the metrics, i.e.:
-		// metricsOutput := getMetricsOutput()
-		// Expect(metricsOutput).To(ContainSubstring(
-		//    fmt.Sprintf(`controller_runtime_reconcile_total{controller="%s",result="success"} 1`,
-		//    strings.ToLower(<Kind>),
-		// ))
+		It("should create a wireguard config", func() {
+			By("creating a wireguard config")
+			sample, err := envsubst.ReadFile("config/samples/pia_v1alpha1_wireguardconfig.yaml")
+			Expect(err).NotTo(HaveOccurred(), "Failed read sample resource")
 
-		It("should run successfully", func() {
+			cmd := exec.Command("kubectl", "apply", "-f", "-")
+			cmd.Stdin = bytes.NewBuffer(sample)
+			_, err = utils.Run(cmd)
+			Expect(err).NotTo(HaveOccurred(), "Failed to create wireguard config")
+
+			By("waiting for the generate pod to start")
+			verifyPod := func(g Gomega) {
+				cmd := exec.Command("kubectl", "get", "pods",
+					"-o", "jsonpath={.status.phase}", "generate-config")
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).To(Equal("Running"), "generate pod in wrong status")
+			}
+			Eventually(verifyPod, 1*time.Minute).Should(Succeed())
+
+			By("waiting for the pod to be ready")
+			containersReady := func(g Gomega) {
+				cmd := exec.Command("kubectl", "get", "pods",
+					"-o", `jsonpath={.status.conditions[?(@.type=="ContainersReady")].status}`,
+					"generate-config")
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).To(Equal("True"))
+			}
+			Eventually(containersReady).Should(Succeed())
+			Consistently(containersReady).Should(Succeed())
+
+			By("waiting for the config to be generated")
+			copyConfig := func(g Gomega) {
+				cmd := exec.Command("kubectl", "exec",
+					"generate-config", "-c", "results",
+					"--", "cat", "/out/pia0.conf")
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).NotTo(ContainSubstring("No such file or directory"))
+			}
+			Eventually(copyConfig, 1*time.Minute).Should(Succeed())
+		})
+
+		It("should create a wireguard client", func() {
 			By("creating a wireguard client")
 			cmd := exec.Command("kubectl", "apply", "-f",
 				"config/samples/core_v1alpha1_wireguardclient.yaml",
@@ -253,11 +290,12 @@ var _ = Describe("Manager", Ordered, func() {
 			var name string
 			getPodName := func(g Gomega) {
 				cmd := exec.Command("kubectl", "get", "pods",
+					"-l", "app.kubernetes.io/name=wireguard",
 					"-o", "jsonpath={.items[*].metadata.name}")
 				name, err = utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
-				Expect(name).NotTo(BeEmpty())
-				Expect(strings.Fields(name)).To(HaveLen(1))
+				g.Expect(name).NotTo(BeEmpty())
+				g.Expect(strings.Fields(name)).To(HaveLen(1))
 			}
 			Eventually(getPodName, 1*time.Minute).Should(Succeed())
 

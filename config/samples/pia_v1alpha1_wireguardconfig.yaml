@@ -1,0 +1,12 @@
+apiVersion: pia.thecluster.io/v1alpha1
+kind: WireguardConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: thecluster-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: wireguardconfig-sample
+spec:
+  username:
+    value: $PIA_USER
+  password:
+    value: $PIA_PASS

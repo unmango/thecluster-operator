@@ -23,6 +23,9 @@ jobs:
   test-e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    env:
+      PIA_USER: ${{ secrets.PIA_USER }}
+      PIA_PASS: ${{ secrets.PIA_PASS }}
     steps:
       - uses: actions/checkout@v4
 

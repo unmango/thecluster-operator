@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/core.thecluster.io_wireguardclients.yaml
+- bases/pia.thecluster.io_wireguardconfigs.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

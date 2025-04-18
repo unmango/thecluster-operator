@@ -32,6 +32,8 @@ github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbt
 github.com/PuerkitoBio/purell v1.2.1 h1:QsZ4TjvwiMpat6gBCBxEQI0rcS9ehtkKtSpiUnd9N28=
 github.com/PuerkitoBio/purell v1.2.1/go.mod h1:ZwHcC/82TOaovDi//J/804umJFFmbOHPngi8iYYv/Eo=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
+github.com/a8m/envsubst v1.4.3 h1:kDF7paGK8QACWYaQo6KtyYBozY2jhQrTuNNuUxQkhJY=
+github.com/a8m/envsubst v1.4.3/go.mod h1:4jjHWQlZoaXPoLQUb7H2qT4iLkZDdmEQiOUogdUmqVU=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/chroma/v2 v2.16.0 h1:QC5ZMizk67+HzxFDjQ4ASjni5kWBTGiigRG1u23IGvA=
@@ -400,8 +402,6 @@ github.com/otiai10/curr v0.0.0-20150429015615-9b4961190c95/go.mod h1:9qAhocn7zKJ
 github.com/otiai10/curr v1.0.0/go.mod h1:LskTG5wDwr8Rs+nNQ+1LlxRjAtTZZjtJW4rMXl6j4vs=
 github.com/otiai10/mint v1.3.0/go.mod h1:F5AjcsTsWUqX+Na9fpHb52P8pcRX2CI6A3ctIT91xUo=
 github.com/otiai10/mint v1.3.1/go.mod h1:/yxELlJQ0ufhjUwhshSj+wFjZ78CnZ48/1wtmBH1OTc=
-github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
-github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pelletier/go-toml v1.9.5 h1:4yBQzkHv+7BHq2PQUZF3Mx0IYxG7LsP222s7Agd3ve8=
 github.com/pelletier/go-toml v1.9.5/go.mod h1:u1nR/EPcESfeI/szUZKdtJ0xRNbUoANCkoOuaOx1Y+c=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
@@ -773,8 +773,6 @@ mvdan.cc/gofumpt v0.8.0 h1:nZUCeC2ViFaerTcYKstMmfysj6uhQrA2vJe+2vwGU6k=
 mvdan.cc/gofumpt v0.8.0/go.mod h1:vEYnSzyGPmjvFkqJWtXkh79UwPWP9/HMxQdGEXZHjpg=
 mvdan.cc/unparam v0.0.0-20250301125049-0df0534333a4 h1:WjUu4yQoT5BHT1w8Zu56SP8367OuBV5jvo+4Ulppyf8=
 mvdan.cc/unparam v0.0.0-20250301125049-0df0534333a4/go.mod h1:rthT7OuvRbaGcd5ginj6dA2oLE7YNlta9qhBNNdCaLE=
-resty.dev/v3 v3.0.0-beta.2 h1:xu4mGAdbCLuc3kbk7eddWfWm4JfhwDtdapwss5nCjnQ=
-resty.dev/v3 v3.0.0-beta.2/go.mod h1:OgkqiPvTDtOuV4MGZuUDhwOpkY8enjOsjjMzeOHefy4=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0 h1:CPT0ExVicCzcpeN4baWEV2ko2Z/AsiZgEdwgcfwLgMo=
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.0/go.mod h1:Ve9uj1L+deCXFrPOk1LpFXqTg7LCFzFso6PA48q/XZw=
 sigs.k8s.io/controller-runtime v0.20.4 h1:X3c+Odnxz+iPTRobG4tp092+CvBU9UK0t/bRf+n0DGU=

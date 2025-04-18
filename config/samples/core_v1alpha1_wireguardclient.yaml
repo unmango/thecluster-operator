@@ -2,6 +2,9 @@
 apiVersion: v1
 kind: Secret
 metadata:
+  labels:
+    app.kubernetes.io/name: thecluster-operator
+    app.kubernetes.io/managed-by: kustomize
   name: wireguardclient-sample
 stringData:
   wg0: |
@@ -11,6 +14,9 @@ stringData:
 apiVersion: core.thecluster.io/v1alpha1
 kind: WireguardClient
 metadata:
+  labels:
+    app.kubernetes.io/name: thecluster-operator
+    app.kubernetes.io/managed-by: kustomize
   name: wireguardclient-sample
 spec:
   puid: 1001
