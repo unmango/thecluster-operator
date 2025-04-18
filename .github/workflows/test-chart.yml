@@ -8,45 +8,28 @@ on:
 
 jobs:
   test-e2e:
-    name: Run on Ubuntu
+    name: E2E
     runs-on: ubuntu-latest
     steps:
-      - name: Clone the code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.sum
 
-      - name: Install the latest version of kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+      - run: go install sigs.k8s.io/kind
+      - run: kind version
+      - run: kind create cluster
 
-      - name: Verify kind installation
-        run: kind version
-
-      - name: Create kind cluster
-        run: kind create cluster
-
-      - name: Prepare thecluster-operator
-        run: |
+      - run: |
           go mod tidy
           make docker-build IMG=thecluster-operator:v0.1.0
           kind load docker-image thecluster-operator:v0.1.0
 
-      - name: Install Helm
-        run: |
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-      - name: Verify Helm installation
-        run: helm version
-
-      - name: Lint Helm Chart
-        run: |
-          helm lint ./dist/chart
+      - run: go install helm.sh/helm/v3/cmd/helm
+      - run: helm version
+      - run: helm lint ./dist/chart
 
 # TODO: Uncomment if cert-manager is enabled
 #      - name: Install cert-manager via Helm
@@ -78,12 +61,11 @@ jobs:
 #        run: |
 #          kubectl wait --namespace monitoring --for=condition=available --timeout=300s deployment/prometheus-server
 
-      - name: Install Helm chart for project
-        run: |
-          helm install my-release ./dist/chart --create-namespace --namespace thecluster-operator-system
+      - run: |
+          helm install my-release ./dist/chart \
+          --create-namespace --namespace thecluster-operator-system
 
-      - name: Check Helm release status
-        run: |
+      - run: |
           helm status my-release --namespace thecluster-operator-system
 
 # TODO: Uncomment if prometheus.enabled is set to true to confirm that the ServiceMonitor gets created
