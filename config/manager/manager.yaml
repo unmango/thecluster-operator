@@ -59,6 +59,9 @@ spec:
         image: controller:latest
         name: manager
         ports: []
+        env:
+        - name: WIREGUARDCLIENT_IMAGE
+          value: lscr.io/linuxserver/wireguard:1.0.20210914-r4-ls73
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

@@ -4,6 +4,7 @@
 resources:
 - bases/core.thecluster.io_wireguardclients.yaml
 - bases/pia.thecluster.io_wireguardconfigs.yaml
+- bases/net.thecluster.io_wireguardclients.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
