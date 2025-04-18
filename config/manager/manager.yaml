@@ -56,6 +56,9 @@ spec:
           - --health-probe-bind-address=:8081
         image: controller:latest
         name: manager
+        env:
+        - name: WIREGUARDCLIENT_IMAGE
+          value: lscr.io/linuxserver/wireguard:1.0.20210914-r4-ls73
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
