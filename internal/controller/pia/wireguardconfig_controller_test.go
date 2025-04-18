@@ -109,36 +109,16 @@ var _ = Describe("WireguardConfig Controller", func() {
 				},
 			))
 
-			Expect(pod.Spec.InitContainers).To(ConsistOf(And(
-				HaveField("Name", "setup"),
-				HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
-				HaveField("Env", []corev1.EnvVar{
-					{Name: "PIA_USER", Value: piaUser},
-					{Name: "PIA_PASS", Value: piaPass},
-					{Name: "PIA_PF", Value: "false"},
-					{Name: "PIA_CONNECT", Value: "false"},
-					{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
-					{Name: "VPN_PROTOCOL", Value: "no"},
-					{Name: "DISABLE_IPV6", Value: "no"},
-					{Name: "DIP_TOKEN", Value: "no"},
-					{Name: "AUTOCONNECT", Value: "true"},
-				}),
-				HaveField("VolumeMounts", []corev1.VolumeMount{{
-					Name:      "results",
-					MountPath: "/out",
-				}}),
-			)))
-
 			Expect(pod.Spec.Containers).To(ConsistOf(
 				And(
 					HaveField("Name", "generate-config"),
 					HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
-					HaveField("Command", []string{"/src/connect_to_wireguard_with_token.sh"}),
 					HaveField("Env", []corev1.EnvVar{
 						{Name: "PIA_USER", Value: piaUser},
 						{Name: "PIA_PASS", Value: piaPass},
 						{Name: "PIA_PF", Value: "false"},
 						{Name: "PIA_CONNECT", Value: "false"},
+						{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
 						{Name: "VPN_PROTOCOL", Value: "wireguard"},
 						{Name: "DISABLE_IPV6", Value: "no"},
 						{Name: "DIP_TOKEN", Value: "no"},

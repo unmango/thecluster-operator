@@ -7,6 +7,6 @@ metadata:
   name: wireguardconfig-sample
 spec:
   username:
-    value: <your username>
+    value: $PIA_USER
   password:
-    value: <your password>
+    value: $PIA_PASS

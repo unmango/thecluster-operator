@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a8m/envsubst"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -234,10 +236,12 @@ var _ = Describe("Manager", Ordered, func() {
 
 		It("should create a wireguard config", func() {
 			By("creating a wireguard config")
-			cmd := exec.Command("kubectl", "apply", "-f",
-				"config/samples/pia_v1alpha1_wireguardconfig.yaml",
-			)
-			_, err := utils.Run(cmd)
+			sample, err := envsubst.ReadFile("config/samples/pia_v1alpha1_wireguardconfig.yaml")
+			Expect(err).NotTo(HaveOccurred(), "Failed read sample resource")
+
+			cmd := exec.Command("kubectl", "apply", "-f", "-")
+			cmd.Stdin = bytes.NewBuffer(sample)
+			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create wireguard config")
 
 			By("waiting for the generate pod to start")

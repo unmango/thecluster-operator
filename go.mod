@@ -13,6 +13,7 @@ tool (
 )
 
 require (
+	github.com/a8m/envsubst v1.4.3
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
 	k8s.io/api v0.32.3
