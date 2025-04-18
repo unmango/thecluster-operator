@@ -38,8 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	corev1alpha1 "github.com/unmango/thecluster-operator/api/core/v1alpha1"
+	netv1alpha1 "github.com/unmango/thecluster-operator/api/net/v1alpha1"
 	piav1alpha1 "github.com/unmango/thecluster-operator/api/pia/v1alpha1"
 	corecontroller "github.com/unmango/thecluster-operator/internal/controller/core"
+	netcontroller "github.com/unmango/thecluster-operator/internal/controller/net"
 	piacontroller "github.com/unmango/thecluster-operator/internal/controller/pia"
 	// +kubebuilder:scaffold:imports
 )
@@ -54,6 +56,7 @@ func init() {
 
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(piav1alpha1.AddToScheme(scheme))
+	utilruntime.Must(netv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -206,8 +209,9 @@ func main() {
 	}
 
 	if err = (&corecontroller.WireguardClientReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("wireguardclient-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WireguardClient")
 		os.Exit(1)
@@ -217,6 +221,13 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WireguardConfig")
+		os.Exit(1)
+	}
+	if err = (&netcontroller.WireguardClientReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "WireguardClient")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
