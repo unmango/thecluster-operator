@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "timonwong.shellcheck",
+    "ms-azuretools.vscode-docker",
+    "golang.go",
+    "ms-kubernetes-tools.vscode-kubernetes-tools"
+  ]
+}
