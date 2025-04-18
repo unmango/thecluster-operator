@@ -266,7 +266,7 @@ var _ = Describe("Manager", Ordered, func() {
 			copyConfig := func(g Gomega) {
 				cmd := exec.Command("kubectl", "exec",
 					"generate-config", "-c", "results",
-					"--", "cat", "/out/pia.conf")
+					"--", "cat", "/out/pia0.conf")
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).NotTo(ContainSubstring("No such file or directory"))
