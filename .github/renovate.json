@@ -2,7 +2,6 @@
 	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
 	"extends": [
 		"config:recommended",
-		"customManagers:makefileVersions",
 		"github>UnstoppableMango/renovate-config"
 	],
 	"schedule": [
@@ -11,18 +10,5 @@
 	"major": {
 		"dependencyDashboardApproval": true
 	},
-	"customManagers": [
-		{
-			"customType": "regex",
-			"depNameTemplate": "unmango/devctl",
-			"datasourceTemplate": "github-releases",
-			"fileMatch": [
-				"\\.versions\\/devctl"
-			],
-			"matchStrings": [
-				"(?<currentValue>\\d+\\.\\d+\\.\\d+)"
-			]
-		}
-	],
 	"packageRules": []
 }
