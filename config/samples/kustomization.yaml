@@ -2,4 +2,5 @@
 resources:
 - core_v1alpha1_wireguardclient.yaml
 - pia_v1alpha1_wireguardconfig.yaml
+- net_v1alpha1_wireguardclient.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

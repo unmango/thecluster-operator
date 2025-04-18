@@ -7,6 +7,16 @@ layout:
 - go.kubebuilder.io/v4
 multigroup: true
 plugins:
+  deploy-image.go.kubebuilder.io/v1-alpha:
+    resources:
+    - domain: thecluster.io
+      group: net
+      kind: WireguardClient
+      options:
+        containerPort: "51820"
+        image: lscr.io/linuxserver/wireguard:1.0.20210914-r4-ls73
+        runAsUser: "1001"
+      version: v1alpha1
   helm.kubebuilder.io/v1-alpha: {}
 projectName: thecluster-operator
 repo: github.com/unmango/thecluster-operator
@@ -28,5 +38,14 @@ resources:
   group: pia
   kind: WireguardConfig
   path: github.com/unmango/thecluster-operator/api/pia/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: thecluster.io
+  group: net
+  kind: WireguardClient
+  path: github.com/unmango/thecluster-operator/api/net/v1alpha1
   version: v1alpha1
 version: "3"

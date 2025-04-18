@@ -1,0 +1,14 @@
+apiVersion: net.thecluster.io/v1alpha1
+kind: WireguardClient
+metadata:
+  labels:
+    app.kubernetes.io/name: thecluster-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: wireguardclient-sample
+spec:
+  # TODO(user): edit the following value to ensure the number
+  # of Pods/Instances your Operand must have on cluster
+  size: 1
+
+  # TODO(user): edit the following value to ensure the container has the right port to be initialized
+  containerPort: 51820

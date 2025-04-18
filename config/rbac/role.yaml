@@ -19,6 +19,13 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -32,6 +39,7 @@ rules:
   - watch
 - apiGroups:
   - core.thecluster.io
+  - net.thecluster.io
   resources:
   - wireguardclients
   verbs:
@@ -44,12 +52,14 @@ rules:
   - watch
 - apiGroups:
   - core.thecluster.io
+  - net.thecluster.io
   resources:
   - wireguardclients/finalizers
   verbs:
   - update
 - apiGroups:
   - core.thecluster.io
+  - net.thecluster.io
   resources:
   - wireguardclients/status
   verbs:
