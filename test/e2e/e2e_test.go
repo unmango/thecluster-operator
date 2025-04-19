@@ -40,10 +40,6 @@ const (
 	metricsRoleBindingName = "thecluster-operator-metrics-binding"
 )
 
-var (
-	curlVersion = os.Getenv("CURLIMAGES_CURL_VERSION")
-)
-
 var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
 
