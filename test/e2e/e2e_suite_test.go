@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	projectImage = "example.com/tmp:v0.0.1"
+	projectImage = "ghcr.io/unmango/thecluster-operator:v0.0.1"
 )
 
 func TestE2E(t *testing.T) {
