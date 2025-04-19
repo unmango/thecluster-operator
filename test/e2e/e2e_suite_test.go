@@ -1,5 +1,5 @@
 /*
-Copyright 2025 UnstoppableMango.
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,32 +28,19 @@ import (
 )
 
 var (
-	projectImage = "example.com/tmp:v0.0.1"
+	projectImage = "ghcr.io/unmango/thecluster-operator:v0.0.1"
 )
 
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	_, _ = fmt.Fprintf(GinkgoWriter, "Starting tmp integration test suite\n")
+	_, _ = fmt.Fprintf(GinkgoWriter, "Starting thecluster-operator integration test suite\n")
 	RunSpecs(t, "e2e suite")
 }
 
 var _ = BeforeSuite(func() {
-	By("Ensure that Prometheus is enabled")
-	_ = utils.UncommentCode("config/default/kustomization.yaml", "#- ../prometheus", "#")
-
-	By("generating files")
-	cmd := exec.Command("make", "generate")
-	_, err := utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to run make generate")
-
-	By("generating manifests")
-	cmd = exec.Command("make", "manifests")
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to run make manifests")
-
 	By("building the manager(Operator) image")
-	cmd = exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectImage))
-	_, err = utils.Run(cmd)
+	cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectImage))
+	_, err := utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to build the manager(Operator) image")
 
 	By("loading the manager(Operator) image on Kind")

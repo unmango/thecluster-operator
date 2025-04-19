@@ -25,4 +25,7 @@ resources:
 - pia_wireguardconfig_admin_role.yaml
 - pia_wireguardconfig_editor_role.yaml
 - pia_wireguardconfig_viewer_role.yaml
+- core_wireguardclient_admin_role.yaml
+- core_wireguardclient_editor_role.yaml
+- core_wireguardclient_viewer_role.yaml
 

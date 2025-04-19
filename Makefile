@@ -1,11 +1,5 @@
 IMG ?= controller:latest
-
 ENVTEST_K8S_VERSION = 1.31.0
-
-# renovate: datasource=docker depName=curlimages/curl
-CURLIMAGES_CURL_VERSION := 8.13.0
-
-export CURLIMAGES_CURL_VERSION
 
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -28,7 +22,7 @@ include custom.mk
 ##@ General
 
 .PHONY: help
-help:
+help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Development
@@ -43,11 +37,11 @@ generate:
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
-fmt:
+fmt: ## Run go fmt against code.
 	go fmt ./...
 
 .PHONY: vet
-vet:
+vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
@@ -70,22 +64,26 @@ lint:
 lint-fix:
 	$(GOLANGCI_LINT) run --fix
 
+.PHONY: lint-config
+lint-config: golangci-lint ## Verify golangci-lint linter configuration
+	$(GOLANGCI_LINT) config verify
+
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet
+build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/main.go
 
 .PHONY: run
-run: manifests generate fmt vet
+run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
 .PHONY: docker-build
-docker-build:
+docker-build: ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${IMG} .
 
 .PHONY: docker-push
-docker-push:
+docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
 
 PLATFORMS ?= linux/arm64,linux/amd64
@@ -93,10 +91,10 @@ PLATFORMS ?= linux/arm64,linux/amd64
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name tmp-builder
-	$(CONTAINER_TOOL) buildx use tmp-builder
+	- $(CONTAINER_TOOL) buildx create --name thecluster-operator-builder
+	$(CONTAINER_TOOL) buildx use thecluster-operator-builder
 	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm tmp-builder
+	- $(CONTAINER_TOOL) buildx rm thecluster-operator-builder
 	rm Dockerfile.cross
 
 .PHONY: build-installer
