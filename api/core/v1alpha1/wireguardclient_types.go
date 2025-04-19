@@ -1,5 +1,5 @@
 /*
-Copyright 2024 UnstoppableMango.
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ type WireguardClientStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// WireguardClient is the Schema for the wireguardclients API
+// WireguardClient is the Schema for the wireguardclients API.
 type WireguardClient struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -100,7 +100,7 @@ type WireguardClient struct {
 
 // +kubebuilder:object:root=true
 
-// WireguardClientList contains a list of WireguardClient
+// WireguardClientList contains a list of WireguardClient.
 type WireguardClientList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

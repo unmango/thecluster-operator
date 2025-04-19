@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   labels:
     control-plane: controller-manager
-    app.kubernetes.io/name: tmp
+    app.kubernetes.io/name: thecluster-operator
     app.kubernetes.io/managed-by: kustomize
   name: system
 ---
@@ -14,12 +14,13 @@ metadata:
   namespace: system
   labels:
     control-plane: controller-manager
-    app.kubernetes.io/name: tmp
+    app.kubernetes.io/name: thecluster-operator
     app.kubernetes.io/managed-by: kustomize
 spec:
   selector:
     matchLabels:
       control-plane: controller-manager
+      app.kubernetes.io/name: thecluster-operator
   replicas: 1
   template:
     metadata:
@@ -27,6 +28,7 @@ spec:
         kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: controller-manager
+        app.kubernetes.io/name: thecluster-operator
     spec:
       affinity:
         nodeAffinity:
@@ -56,6 +58,7 @@ spec:
           - --health-probe-bind-address=:8081
         image: controller:latest
         name: manager
+        ports: []
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -80,5 +83,7 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
+        volumeMounts: []
+      volumes: []
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

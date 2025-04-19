@@ -20,7 +20,7 @@ An operator for useful stuff in your CLUSTER. WIP. Currently does Wireguard stuf
 **Build and push your image to the location specified by `IMG`:**
 
 ```sh
-make docker-build docker-push IMG=<some-registry>/tmp:tag
+make docker-build docker-push IMG=<some-registry>/thecluster-operator:tag
 ```
 
 **NOTE:** This image ought to be published in the personal registry you specified.
@@ -36,7 +36,7 @@ make install
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
 ```sh
-make deploy IMG=<some-registry>/tmp:tag
+make deploy IMG=<some-registry>/thecluster-operator:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -78,21 +78,40 @@ Following are the steps to build the installer and distribute this project to us
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=<some-registry>/tmp:tag
+make build-installer IMG=<some-registry>/thecluster-operator:tag
 ```
 
-NOTE: The makefile target mentioned above generates an 'install.yaml'
+**NOTE:** The makefile target mentioned above generates an 'install.yaml'
 file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
+with Kustomize, which are necessary to install this project without its
+dependencies.
 
 2. Using the installer
 
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
+Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
+the project, i.e.:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/tmp/<tag or branch>/dist/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/<org>/thecluster-operator/<tag or branch>/dist/install.yaml
 ```
+
+### By providing a Helm Chart
+
+1. Build the chart using the optional helm plugin
+
+```sh
+kubebuilder edit --plugins=helm/v1-alpha
+```
+
+2. See that a chart was generated under 'dist/chart', and users
+can obtain this solution from there.
+
+**NOTE:** If you change the project, you need to update the Helm Chart
+using the same command above to sync the latest changes. Furthermore,
+if you create webhooks, you need to use the above command with
+the '--force' flag and manually ensure that any custom configuration
+previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
+is manually re-applied afterwards.
 
 ## Contributing
 
@@ -104,7 +123,7 @@ More information can be found via the [Kubebuilder Documentation](https://book.k
 
 ## License
 
-Copyright 2025 UnstoppableMango.
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
