@@ -34,10 +34,10 @@ import (
 )
 
 const (
-	namespace              = "tmp-system"
-	serviceAccountName     = "tmp-controller-manager"
-	metricsServiceName     = "tmp-controller-manager-metrics-service"
-	metricsRoleBindingName = "tmp-metrics-binding"
+	namespace              = "thecluster-operator-system"
+	serviceAccountName     = "thecluster-operator-controller-manager"
+	metricsServiceName     = "thecluster-operator-controller-manager-metrics-service"
+	metricsRoleBindingName = "thecluster-operator-metrics-binding"
 )
 
 var (

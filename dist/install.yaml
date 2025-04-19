@@ -3,9 +3,9 @@ kind: Namespace
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: tmp
+    app.kubernetes.io/name: thecluster-operator
     control-plane: controller-manager
-  name: tmp-system
+  name: thecluster-operator-system
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -25,7 +25,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: WireguardClient is the Schema for the wireguardclients API
+        description: WireguardClient is the Schema for the wireguardclients API.
         properties:
           apiVersion:
             description: |-
@@ -447,18 +447,18 @@ kind: ServiceAccount
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: tmp
-  name: tmp-controller-manager
-  namespace: tmp-system
+    app.kubernetes.io/name: thecluster-operator
+  name: thecluster-operator-controller-manager
+  namespace: thecluster-operator-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: tmp
-  name: tmp-leader-election-role
-  namespace: tmp-system
+    app.kubernetes.io/name: thecluster-operator
+  name: thecluster-operator-leader-election-role
+  namespace: thecluster-operator-system
 rules:
 - apiGroups:
   - ""
@@ -495,7 +495,78 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: tmp-manager-role
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: thecluster-operator
+  name: thecluster-operator-core-wireguardclient-admin-role
+rules:
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients
+  verbs:
+  - '*'
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: thecluster-operator
+  name: thecluster-operator-core-wireguardclient-editor-role
+rules:
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: thecluster-operator
+  name: thecluster-operator-core-wireguardclient-viewer-role
+rules:
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - core.thecluster.io
+  resources:
+  - wireguardclients/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: thecluster-operator-manager-role
 rules:
 - apiGroups:
   - ""
@@ -579,7 +650,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: tmp-metrics-auth-role
+  name: thecluster-operator-metrics-auth-role
 rules:
 - apiGroups:
   - authentication.k8s.io
@@ -597,7 +668,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: tmp-metrics-reader
+  name: thecluster-operator-metrics-reader
 rules:
 - nonResourceURLs:
   - /metrics
@@ -610,7 +681,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: thecluster-operator
-  name: tmp-pia-wireguardconfig-admin-role
+  name: thecluster-operator-pia-wireguardconfig-admin-role
 rules:
 - apiGroups:
   - pia.thecluster.io
@@ -631,7 +702,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: thecluster-operator
-  name: tmp-pia-wireguardconfig-editor-role
+  name: thecluster-operator-pia-wireguardconfig-editor-role
 rules:
 - apiGroups:
   - pia.thecluster.io
@@ -658,7 +729,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: thecluster-operator
-  name: tmp-pia-wireguardconfig-viewer-role
+  name: thecluster-operator-pia-wireguardconfig-viewer-role
 rules:
 - apiGroups:
   - pia.thecluster.io
@@ -680,56 +751,56 @@ kind: RoleBinding
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: tmp
-  name: tmp-leader-election-rolebinding
-  namespace: tmp-system
+    app.kubernetes.io/name: thecluster-operator
+  name: thecluster-operator-leader-election-rolebinding
+  namespace: thecluster-operator-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: tmp-leader-election-role
+  name: thecluster-operator-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: tmp-controller-manager
-  namespace: tmp-system
+  name: thecluster-operator-controller-manager
+  namespace: thecluster-operator-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: tmp
-  name: tmp-manager-rolebinding
+    app.kubernetes.io/name: thecluster-operator
+  name: thecluster-operator-manager-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: tmp-manager-role
+  name: thecluster-operator-manager-role
 subjects:
 - kind: ServiceAccount
-  name: tmp-controller-manager
-  namespace: tmp-system
+  name: thecluster-operator-controller-manager
+  namespace: thecluster-operator-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: tmp-metrics-auth-rolebinding
+  name: thecluster-operator-metrics-auth-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: tmp-metrics-auth-role
+  name: thecluster-operator-metrics-auth-role
 subjects:
 - kind: ServiceAccount
-  name: tmp-controller-manager
-  namespace: tmp-system
+  name: thecluster-operator-controller-manager
+  namespace: thecluster-operator-system
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: tmp
+    app.kubernetes.io/name: thecluster-operator
     control-plane: controller-manager
-  name: tmp-controller-manager-metrics-service
-  namespace: tmp-system
+  name: thecluster-operator-controller-manager-metrics-service
+  namespace: thecluster-operator-system
 spec:
   ports:
   - name: https
@@ -737,6 +808,7 @@ spec:
     protocol: TCP
     targetPort: 8443
   selector:
+    app.kubernetes.io/name: thecluster-operator
     control-plane: controller-manager
 ---
 apiVersion: apps/v1
@@ -744,20 +816,22 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: tmp
+    app.kubernetes.io/name: thecluster-operator
     control-plane: controller-manager
-  name: tmp-controller-manager
-  namespace: tmp-system
+  name: thecluster-operator-controller-manager
+  namespace: thecluster-operator-system
 spec:
   replicas: 1
   selector:
     matchLabels:
+      app.kubernetes.io/name: thecluster-operator
       control-plane: controller-manager
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
+        app.kubernetes.io/name: thecluster-operator
         control-plane: controller-manager
     spec:
       affinity:
@@ -789,6 +863,7 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
+        ports: []
         readinessProbe:
           httpGet:
             path: /readyz
@@ -807,9 +882,11 @@ spec:
           capabilities:
             drop:
             - ALL
+        volumeMounts: []
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-      serviceAccountName: tmp-controller-manager
+      serviceAccountName: thecluster-operator-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes: []
