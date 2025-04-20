@@ -113,10 +113,60 @@ var _ = Describe("WireguardConfig Controller", func() {
 			)
 			Expect(generating).To(BeTrueBecause("The config is generating"))
 
-			expectGeneratePodCreated(
-				typeNamespacedName,
-				resourceName, piaUser, piaPass,
-			)
+			podName := types.NamespacedName{
+				Namespace: typeNamespacedName.Namespace,
+				Name:      "generate-config",
+			}
+			pod := &corev1.Pod{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, podName, pod)
+			}).Should(Succeed())
+
+			Expect(pod.OwnerReferences).To(ConsistOf(And(
+				HaveField("Kind", "WireguardConfig"),
+				HaveField("Name", resourceName),
+			)))
+
+			Expect(pod.Spec.Volumes).To(ConsistOf(
+				corev1.Volume{
+					Name: "results",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+			))
+
+			Expect(pod.Spec.Containers).To(ConsistOf(
+				And(
+					HaveField("Name", "generate-config"),
+					HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
+					HaveField("Env", []corev1.EnvVar{
+						{Name: "PIA_USER", Value: piaUser},
+						{Name: "PIA_PASS", Value: piaPass},
+						{Name: "PIA_PF", Value: "false"},
+						{Name: "PIA_CONNECT", Value: "false"},
+						{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
+						{Name: "VPN_PROTOCOL", Value: "wireguard"},
+						{Name: "DISABLE_IPV6", Value: "no"},
+						{Name: "DIP_TOKEN", Value: "no"},
+						{Name: "AUTOCONNECT", Value: "true"},
+					}),
+					HaveField("VolumeMounts", []corev1.VolumeMount{{
+						Name:      "results",
+						MountPath: "/out",
+					}}),
+				),
+				And(
+					HaveField("Name", "results"),
+					HaveField("Image", "busybox:latest"),
+					HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
+					HaveField("VolumeMounts", []corev1.VolumeMount{{
+						Name:      "results",
+						ReadOnly:  true,
+						MountPath: "/out",
+					}}),
+				),
+			))
 		})
 
 		When("username is provided in a secret", func() {
@@ -181,10 +231,65 @@ var _ = Describe("WireguardConfig Controller", func() {
 				)
 				Expect(generating).To(BeTrueBecause("The config is generating"))
 
-				expectGeneratePodCreated(
-					typeNamespacedName,
-					resourceName, piaUser, piaPass,
-				)
+				podName := types.NamespacedName{
+					Namespace: typeNamespacedName.Namespace,
+					Name:      "generate-config",
+				}
+				pod := &corev1.Pod{}
+				Eventually(func() error {
+					return k8sClient.Get(ctx, podName, pod)
+				}).Should(Succeed())
+
+				Expect(pod.OwnerReferences).To(ConsistOf(And(
+					HaveField("Kind", "WireguardConfig"),
+					HaveField("Name", resourceName),
+				)))
+
+				Expect(pod.Spec.Volumes).To(ConsistOf(
+					corev1.Volume{
+						Name: "results",
+						VolumeSource: corev1.VolumeSource{
+							EmptyDir: &corev1.EmptyDirVolumeSource{},
+						},
+					},
+				))
+
+				Expect(pod.Spec.Containers).To(ConsistOf(
+					And(
+						HaveField("Name", "generate-config"),
+						HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
+						HaveField("Env", []corev1.EnvVar{
+							{
+								Name: "PIA_USER",
+								ValueFrom: &corev1.EnvVarSource{
+									SecretKeyRef: resource.Spec.Username.SecretKeyRef,
+								},
+							},
+							{Name: "PIA_PASS", Value: piaPass},
+							{Name: "PIA_PF", Value: "false"},
+							{Name: "PIA_CONNECT", Value: "false"},
+							{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
+							{Name: "VPN_PROTOCOL", Value: "wireguard"},
+							{Name: "DISABLE_IPV6", Value: "no"},
+							{Name: "DIP_TOKEN", Value: "no"},
+							{Name: "AUTOCONNECT", Value: "true"},
+						}),
+						HaveField("VolumeMounts", []corev1.VolumeMount{{
+							Name:      "results",
+							MountPath: "/out",
+						}}),
+					),
+					And(
+						HaveField("Name", "results"),
+						HaveField("Image", "busybox:latest"),
+						HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
+						HaveField("VolumeMounts", []corev1.VolumeMount{{
+							Name:      "results",
+							ReadOnly:  true,
+							MountPath: "/out",
+						}}),
+					),
+				))
 			})
 		})
 
@@ -250,10 +355,65 @@ var _ = Describe("WireguardConfig Controller", func() {
 				)
 				Expect(generating).To(BeTrueBecause("The config is generating"))
 
-				expectGeneratePodCreated(
-					typeNamespacedName,
-					resourceName, piaUser, piaPass,
-				)
+				podName := types.NamespacedName{
+					Namespace: typeNamespacedName.Namespace,
+					Name:      "generate-config",
+				}
+				pod := &corev1.Pod{}
+				Eventually(func() error {
+					return k8sClient.Get(ctx, podName, pod)
+				}).Should(Succeed())
+
+				Expect(pod.OwnerReferences).To(ConsistOf(And(
+					HaveField("Kind", "WireguardConfig"),
+					HaveField("Name", resourceName),
+				)))
+
+				Expect(pod.Spec.Volumes).To(ConsistOf(
+					corev1.Volume{
+						Name: "results",
+						VolumeSource: corev1.VolumeSource{
+							EmptyDir: &corev1.EmptyDirVolumeSource{},
+						},
+					},
+				))
+
+				Expect(pod.Spec.Containers).To(ConsistOf(
+					And(
+						HaveField("Name", "generate-config"),
+						HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
+						HaveField("Env", []corev1.EnvVar{
+							{Name: "PIA_USER", Value: piaUser},
+							{
+								Name: "PIA_PASS",
+								ValueFrom: &corev1.EnvVarSource{
+									SecretKeyRef: resource.Spec.Password.SecretKeyRef,
+								},
+							},
+							{Name: "PIA_PF", Value: "false"},
+							{Name: "PIA_CONNECT", Value: "false"},
+							{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
+							{Name: "VPN_PROTOCOL", Value: "wireguard"},
+							{Name: "DISABLE_IPV6", Value: "no"},
+							{Name: "DIP_TOKEN", Value: "no"},
+							{Name: "AUTOCONNECT", Value: "true"},
+						}),
+						HaveField("VolumeMounts", []corev1.VolumeMount{{
+							Name:      "results",
+							MountPath: "/out",
+						}}),
+					),
+					And(
+						HaveField("Name", "results"),
+						HaveField("Image", "busybox:latest"),
+						HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
+						HaveField("VolumeMounts", []corev1.VolumeMount{{
+							Name:      "results",
+							ReadOnly:  true,
+							MountPath: "/out",
+						}}),
+					),
+				))
 			})
 		})
 
@@ -364,65 +524,3 @@ var _ = Describe("WireguardConfig Controller", func() {
 		})
 	})
 })
-
-func expectGeneratePodCreated(
-	typeNamespacedName types.NamespacedName,
-	resourceName, piaUser, piaPass string,
-) {
-	GinkgoHelper()
-
-	podName := types.NamespacedName{
-		Namespace: typeNamespacedName.Namespace,
-		Name:      "generate-config",
-	}
-	pod := &corev1.Pod{}
-	Eventually(func() error {
-		return k8sClient.Get(ctx, podName, pod)
-	}).Should(Succeed())
-
-	Expect(pod.OwnerReferences).To(ConsistOf(And(
-		HaveField("Kind", "WireguardConfig"),
-		HaveField("Name", resourceName),
-	)))
-
-	Expect(pod.Spec.Volumes).To(ConsistOf(
-		corev1.Volume{
-			Name: "results",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-	))
-
-	Expect(pod.Spec.Containers).To(ConsistOf(
-		And(
-			HaveField("Name", "generate-config"),
-			HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
-			HaveField("Env", []corev1.EnvVar{
-				{Name: "PIA_USER", Value: piaUser},
-				{Name: "PIA_PASS", Value: piaPass},
-				{Name: "PIA_PF", Value: "false"},
-				{Name: "PIA_CONNECT", Value: "false"},
-				{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
-				{Name: "VPN_PROTOCOL", Value: "wireguard"},
-				{Name: "DISABLE_IPV6", Value: "no"},
-				{Name: "DIP_TOKEN", Value: "no"},
-				{Name: "AUTOCONNECT", Value: "true"},
-			}),
-			HaveField("VolumeMounts", []corev1.VolumeMount{{
-				Name:      "results",
-				MountPath: "/out",
-			}}),
-		),
-		And(
-			HaveField("Name", "results"),
-			HaveField("Image", "busybox:latest"),
-			HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
-			HaveField("VolumeMounts", []corev1.VolumeMount{{
-				Name:      "results",
-				ReadOnly:  true,
-				MountPath: "/out",
-			}}),
-		),
-	))
-}
