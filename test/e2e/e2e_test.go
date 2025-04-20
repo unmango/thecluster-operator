@@ -271,7 +271,8 @@ var _ = Describe("Manager", Ordered, func() {
 			getGenPodName := func(g Gomega) {
 				cmd := exec.Command("go", "tool", "kubectl", "get", "pods",
 					"-l", "app.kubernetes.io/name=thecluster-operator",
-					"-l", "pia.thecluster.io/config=wireguardconfig-sample")
+					"-l", "pia.thecluster.io/config=wireguardconfig-sample",
+					"-o", "jsonpath={.items[*].metadata.name}")
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).NotTo(BeEmpty(), "failed to find pod name")
