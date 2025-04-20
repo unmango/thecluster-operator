@@ -18,7 +18,6 @@ package pia
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -108,12 +107,8 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			return ctrl.Result{}, err
 		}
 
-		username, err := r.getConfigValue(ctx, wg.Namespace, wg.Spec.Username)
-		if err != nil {
-			log.Error(err, "Failed to get username")
-			return ctrl.Result{}, err
-		}
-		if username == "" {
+		username := wg.Spec.Username
+		if username.Value == "" && username.SecretKeyRef == nil {
 			_ = meta.SetStatusCondition(&wg.Status.Conditions,
 				metav1.Condition{
 					Type:    TypeErrorWireguardConfig,
@@ -131,12 +126,8 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			}
 		}
 
-		password, err := r.getConfigValue(ctx, wg.Namespace, wg.Spec.Password)
-		if err != nil {
-			log.Error(err, "Failed to get password")
-			return ctrl.Result{}, err
-		}
-		if password == "" {
+		password := wg.Spec.Password
+		if password.Value == "" && password.SecretKeyRef == nil {
 			_ = meta.SetStatusCondition(&wg.Status.Conditions,
 				metav1.Condition{
 					Type:    TypeErrorWireguardConfig,
@@ -243,36 +234,6 @@ func (r *WireguardConfigReconciler) initGenPod(p *corev1.Pod, c *piav1alpha1.Wir
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		}},
-	}
-}
-
-func (r *WireguardConfigReconciler) getConfigValue(ctx context.Context, ns string, c piav1alpha1.WireguardClientConfigValue) (string, error) {
-	if password := c.Value; password != "" {
-		return password, nil
-	}
-
-	if ref := c.SecretKeyRef; ref != nil {
-		return r.lookupSecretKey(ctx, ns, ref)
-	}
-
-	return "", nil
-}
-
-func (r *WireguardConfigReconciler) lookupSecretKey(ctx context.Context, ns string, ref *corev1.SecretKeySelector) (string, error) {
-	name := types.NamespacedName{
-		Name:      ref.Name,
-		Namespace: ns,
-	}
-
-	secret := &corev1.Secret{}
-	if err := r.Get(ctx, name, secret); err != nil {
-		return "", err
-	}
-
-	if data, found := secret.Data[ref.Key]; !found {
-		return "", fmt.Errorf("secret missing key: %s", ref.Key)
-	} else {
-		return string(data), nil
 	}
 }
 
