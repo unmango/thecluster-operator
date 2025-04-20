@@ -184,14 +184,35 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 func (r *WireguardConfigReconciler) initGenPod(p *corev1.Pod, c *piav1alpha1.WireguardConfig) {
 	p.Name = "generate-config"
 	p.Namespace = c.Namespace
+
+	userEnv := corev1.EnvVar{
+		Name:  "PIA_USER",
+		Value: c.Spec.Username.Value,
+	}
+	if ref := c.Spec.Username.SecretKeyRef; ref != nil {
+		userEnv.ValueFrom = &corev1.EnvVarSource{
+			SecretKeyRef: ref,
+		}
+	}
+
+	passEnv := corev1.EnvVar{
+		Name:  "PIA_PASS",
+		Value: c.Spec.Password.Value,
+	}
+	if ref := c.Spec.Password.SecretKeyRef; ref != nil {
+		passEnv.ValueFrom = &corev1.EnvVarSource{
+			SecretKeyRef: ref,
+		}
+	}
+
 	p.Spec = corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
 				Name:  "generate-config",
 				Image: "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0",
 				Env: []corev1.EnvVar{
-					{Name: "PIA_USER", Value: c.Spec.Username.Value},
-					{Name: "PIA_PASS", Value: c.Spec.Password.Value},
+					userEnv,
+					passEnv,
 					{Name: "PIA_PF", Value: "false"},
 					{Name: "PIA_CONNECT", Value: "false"},
 					{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
