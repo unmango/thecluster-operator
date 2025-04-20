@@ -18,6 +18,7 @@ package pia
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,9 +34,10 @@ import (
 )
 
 var (
-	TypeAvailableWireguardClient = "Available"
-	TypeDegradedWireguardClient  = "Degraded"
-	WireguardClientFinalizer     = "wireguardclient.core.thecluster.io/finalizer"
+	TypeAvailableWireguardConfig  = "Available"
+	TypeErrorWireguardConfig      = "Error"
+	TypeGeneratingWireguardConfig = "Generating"
+	WireguardConfigFinalizer      = "wireguardconfig.pia.thecluster.io/finalizer"
 )
 
 // WireguardConfigReconciler reconciles a WireguardConfig object
@@ -58,10 +60,9 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if len(wg.Status.Conditions) == 0 {
-		_ = meta.SetStatusCondition(
-			&wg.Status.Conditions,
+		_ = meta.SetStatusCondition(&wg.Status.Conditions,
 			metav1.Condition{
-				Type:    TypeAvailableWireguardClient,
+				Type:    TypeAvailableWireguardConfig,
 				Status:  metav1.ConditionUnknown,
 				Reason:  "Reconciling",
 				Message: "Starting reconciliation",
@@ -79,8 +80,21 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	cm := &corev1.ConfigMap{}
 	if err := r.Get(ctx, req.NamespacedName, cm); err == nil {
-		log.Info("found existing config map, nothing to do")
-		return ctrl.Result{}, nil
+		_ = meta.SetStatusCondition(&wg.Status.Conditions,
+			metav1.Condition{
+				Type:    TypeAvailableWireguardConfig,
+				Status:  metav1.ConditionTrue,
+				Reason:  "Reconciling",
+				Message: "Config map exists",
+			},
+		)
+		if err := r.Status().Update(ctx, wg); err != nil {
+			log.Error(err, "Failed to update wireguard config status")
+			return ctrl.Result{}, err
+		} else {
+			log.Info("Found existing config map, nothing to do")
+			return ctrl.Result{}, nil
+		}
 	}
 
 	genPodName := types.NamespacedName{
@@ -93,12 +107,63 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			return ctrl.Result{}, err
 		}
 
+		if wg.Spec.Username.Value == "" {
+			_ = meta.SetStatusCondition(&wg.Status.Conditions,
+				metav1.Condition{
+					Type:    TypeErrorWireguardConfig,
+					Status:  metav1.ConditionTrue,
+					Reason:  "Invalid",
+					Message: "Configuration is missing username",
+				},
+			)
+			if err := r.Status().Update(ctx, wg); err != nil {
+				log.Error(err, "Failed to update wireguard config status")
+				return ctrl.Result{}, err
+			} else {
+				log.Info("Spec is missing username")
+				return ctrl.Result{}, nil
+			}
+		}
+
+		if wg.Spec.Password.Value == "" {
+			_ = meta.SetStatusCondition(&wg.Status.Conditions,
+				metav1.Condition{
+					Type:    TypeErrorWireguardConfig,
+					Status:  metav1.ConditionTrue,
+					Reason:  "Invalid",
+					Message: "Configuration is missing password",
+				},
+			)
+			if err := r.Status().Update(ctx, wg); err != nil {
+				log.Error(err, "Failed to update wireguard config status")
+				return ctrl.Result{}, err
+			} else {
+				log.Info("Spec is missing password")
+				return ctrl.Result{}, nil
+			}
+		}
+
 		r.InitGenPod(genPod, wg)
 		if err = ctrl.SetControllerReference(wg, genPod, r.Scheme); err != nil {
 			return ctrl.Result{}, err
 		}
 		if err = r.Create(ctx, genPod); err != nil {
 			return ctrl.Result{}, err
+		}
+
+		_ = meta.SetStatusCondition(&wg.Status.Conditions,
+			metav1.Condition{
+				Type:    TypeGeneratingWireguardConfig,
+				Status:  metav1.ConditionTrue,
+				Reason:  "Reconciling",
+				Message: "Config generator script pod created",
+			},
+		)
+		if err := r.Status().Update(ctx, wg); err != nil {
+			log.Error(err, "Failed to update wireguard config status")
+			return ctrl.Result{}, err
+		} else {
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
 	}
 
