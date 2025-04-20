@@ -17,9 +17,12 @@ limitations under the License.
 package pia
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -41,27 +44,30 @@ var _ = Describe("WireguardConfig Controller", func() {
 			Name:      resourceName,
 			Namespace: "default",
 		}
-		wireguardconfig := &piav1alpha1.WireguardConfig{}
+		var wireguardconfig *piav1alpha1.WireguardConfig
 
 		BeforeEach(func() {
+			wireguardconfig = &piav1alpha1.WireguardConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: "default",
+				},
+				Spec: piav1alpha1.WireguardConfigSpec{
+					Username: piav1alpha1.WireguardClientConfigValue{
+						Value: piaUser,
+					},
+					Password: piav1alpha1.WireguardClientConfigValue{
+						Value: piaPass,
+					},
+				},
+			}
+		})
+
+		JustBeforeEach(func() {
 			By("creating the custom resource for the Kind WireguardConfig")
 			err := k8sClient.Get(ctx, typeNamespacedName, wireguardconfig)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &piav1alpha1.WireguardConfig{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: piav1alpha1.WireguardConfigSpec{
-						Username: piav1alpha1.WireguardClientConfigValue{
-							Value: piaUser,
-						},
-						Password: piav1alpha1.WireguardClientConfigValue{
-							Value: piaPass,
-						},
-					},
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+				Expect(k8sClient.Create(ctx, wireguardconfig)).To(Succeed())
 			}
 		})
 
@@ -72,9 +78,19 @@ var _ = Describe("WireguardConfig Controller", func() {
 
 			By("Cleanup the specific resource instance WireguardConfig")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+
+			By("Deleting any generate pods")
+			genPodName := types.NamespacedName{
+				Namespace: typeNamespacedName.Namespace,
+				Name:      "generate-config",
+			}
+			genPod := &corev1.Pod{}
+			if err = k8sClient.Get(ctx, genPodName, genPod); err == nil {
+				Expect(k8sClient.Delete(ctx, genPod)).To(Succeed())
+			}
 		})
 
-		It("should successfully reconcile the resource", func() {
+		It("should create a job to generate the config", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &WireguardConfigReconciler{
 				Client: k8sClient,
@@ -85,6 +101,17 @@ var _ = Describe("WireguardConfig Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+
+			By("Fetching the config resource")
+			resource := &piav1alpha1.WireguardConfig{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			generating := meta.IsStatusConditionTrue(
+				resource.Status.Conditions,
+				TypeGeneratingWireguardConfig,
+			)
+			Expect(generating).To(BeTrueBecause("The config is generating"))
 
 			podName := types.NamespacedName{
 				Namespace: typeNamespacedName.Namespace,
@@ -140,6 +167,112 @@ var _ = Describe("WireguardConfig Controller", func() {
 					}}),
 				),
 			))
+		})
+
+		When("a matching config exists", func() {
+			BeforeEach(func(ctx context.Context) {
+				By("Creating a matching config map")
+				cm := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      typeNamespacedName.Name,
+						Namespace: typeNamespacedName.Namespace,
+					},
+					Data: map[string]string{},
+				}
+				Expect(k8sClient.Create(ctx, cm)).To(Succeed())
+			})
+
+			AfterEach(func(ctx context.Context) {
+				By("Cleaning up the config map")
+				cm := &corev1.ConfigMap{}
+				if err := k8sClient.Get(ctx, typeNamespacedName, cm); err == nil {
+					Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+				}
+			})
+
+			It("Should be available", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &WireguardConfigReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Fetching the config resource")
+				resource := &piav1alpha1.WireguardConfig{}
+				err = k8sClient.Get(ctx, typeNamespacedName, resource)
+				Expect(err).NotTo(HaveOccurred())
+
+				available := meta.IsStatusConditionTrue(
+					resource.Status.Conditions,
+					TypeAvailableWireguardConfig,
+				)
+				Expect(available).To(BeTrueBecause("The config is available"))
+			})
+		})
+
+		When("username is not provided", func() {
+			BeforeEach(func() {
+				wireguardconfig.Spec.Username.Value = ""
+			})
+
+			It("Should error", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &WireguardConfigReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Fetching the config resource")
+				resource := &piav1alpha1.WireguardConfig{}
+				err = k8sClient.Get(ctx, typeNamespacedName, resource)
+				Expect(err).NotTo(HaveOccurred())
+
+				errored := meta.IsStatusConditionTrue(
+					resource.Status.Conditions,
+					TypeErrorWireguardConfig,
+				)
+				Expect(errored).To(BeTrueBecause("The config is invalid"))
+			})
+		})
+
+		When("password is not provided", func() {
+			BeforeEach(func() {
+				wireguardconfig.Spec.Password.Value = ""
+			})
+
+			It("Should error", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &WireguardConfigReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Fetching the config resource")
+				resource := &piav1alpha1.WireguardConfig{}
+				err = k8sClient.Get(ctx, typeNamespacedName, resource)
+				Expect(err).NotTo(HaveOccurred())
+
+				errored := meta.IsStatusConditionTrue(
+					resource.Status.Conditions,
+					TypeErrorWireguardConfig,
+				)
+				Expect(errored).To(BeTrueBecause("The config is invalid"))
+			})
 		})
 	})
 })
