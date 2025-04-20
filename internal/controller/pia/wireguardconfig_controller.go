@@ -163,7 +163,7 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			log.Error(err, "Failed to update wireguard config status")
 			return ctrl.Result{}, err
 		} else {
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 		}
 	}
 
