@@ -276,6 +276,7 @@ var _ = Describe("Manager", Ordered, func() {
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(output).NotTo(BeEmpty(), "failed to find pod name")
+				g.Expect(strings.Fields(output)).To(HaveLen(1), "expected a single name")
 				genPodName = output
 			}
 			Eventually(getGenPodName).Should(Succeed())

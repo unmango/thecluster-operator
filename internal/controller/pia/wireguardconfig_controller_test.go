@@ -683,6 +683,65 @@ var _ = Describe("WireguardConfig Controller", func() {
 			})
 		})
 
+		When("a matching generate pod exists", func() {
+			const genPodName = "generate-config-fjdsk"
+
+			BeforeEach(func() {
+				By("creating a generate pod")
+				pod := &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      genPodName,
+						Namespace: typeNamespacedName.Namespace,
+						Labels: map[string]string{
+							"app.kubernetes.io/name":   "thecluster-operator",
+							"pia.thecluster.io/config": typeNamespacedName.Name,
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name:  "stub",
+							Image: "busybox",
+						}},
+					},
+				}
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+			})
+
+			AfterEach(func() {
+				By("cleaning up the generate pod")
+				podName := types.NamespacedName{
+					Name:      genPodName,
+					Namespace: typeNamespacedName.Namespace,
+				}
+				pod := &corev1.Pod{}
+				if err := k8sClient.Get(ctx, podName, pod); err == nil {
+					Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+				}
+			})
+
+			It("should not create any new pods", func() {
+				By("Reconciling the created resource")
+				controllerReconciler := &WireguardConfigReconciler{
+					Client: k8sClient,
+					Scheme: k8sClient.Scheme(),
+				}
+
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Listing the pods with matching labels")
+				podList := &corev1.PodList{}
+				err = k8sClient.List(ctx, podList, client.MatchingLabels{
+					"app.kubernetes.io/name":   "thecluster-operator",
+					"pia.thecluster.io/config": typeNamespacedName.Name,
+				})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(podList.Items).To(HaveLen(1), "too many pods created")
+			})
+		})
+
 		When("a matching config exists", func() {
 			BeforeEach(func(ctx context.Context) {
 				By("Creating a matching config map")

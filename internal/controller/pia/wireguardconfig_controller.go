@@ -97,7 +97,7 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	podList := &corev1.PodList{}
 	err := r.List(ctx, podList, client.MatchingLabels{
-		"app.kubernetes.io/name":   "thecluster.operator",
+		"app.kubernetes.io/name":   "thecluster-operator",
 		"pia.thecluster.io/config": wg.Name,
 	})
 	if err != nil {
@@ -106,6 +106,7 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 
 	if len(podList.Items) == 0 {
+		log.Info("Creating pod to generate wireguard config")
 		return r.createGenPod(ctx, wg)
 	}
 
