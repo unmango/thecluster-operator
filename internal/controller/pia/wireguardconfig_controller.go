@@ -21,11 +21,9 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -97,74 +95,19 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 	}
 
-	genPodName := types.NamespacedName{
-		Namespace: req.Namespace,
-		Name:      "results",
+	podList := &corev1.PodList{}
+	err := r.List(ctx, podList, client.MatchingLabels{
+		"app.kubernetes.io/name":   "thecluster-operator",
+		"pia.thecluster.io/config": wg.Name,
+	})
+	if err != nil {
+		log.Error(err, "Failed to list pods matching config labels")
+		return ctrl.Result{}, err
 	}
-	genPod := &corev1.Pod{}
-	if err := r.Get(ctx, genPodName, genPod); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return ctrl.Result{}, err
-		}
 
-		if !hasValue(wg.Spec.Username) {
-			_ = meta.SetStatusCondition(&wg.Status.Conditions,
-				metav1.Condition{
-					Type:    TypeErrorWireguardConfig,
-					Status:  metav1.ConditionTrue,
-					Reason:  "Invalid",
-					Message: "Configuration is missing username",
-				},
-			)
-			if err := r.Status().Update(ctx, wg); err != nil {
-				log.Error(err, "Failed to update wireguard config status")
-				return ctrl.Result{}, err
-			} else {
-				log.Info("Spec is missing username")
-				return ctrl.Result{}, nil
-			}
-		}
-
-		if !hasValue(wg.Spec.Password) {
-			_ = meta.SetStatusCondition(&wg.Status.Conditions,
-				metav1.Condition{
-					Type:    TypeErrorWireguardConfig,
-					Status:  metav1.ConditionTrue,
-					Reason:  "Invalid",
-					Message: "Configuration is missing password",
-				},
-			)
-			if err := r.Status().Update(ctx, wg); err != nil {
-				log.Error(err, "Failed to update wireguard config status")
-				return ctrl.Result{}, err
-			} else {
-				log.Info("Spec is missing password")
-				return ctrl.Result{}, nil
-			}
-		}
-
-		r.initGenPod(genPod, wg)
-		if err = ctrl.SetControllerReference(wg, genPod, r.Scheme); err != nil {
-			return ctrl.Result{}, err
-		}
-		if err = r.Create(ctx, genPod); err != nil {
-			return ctrl.Result{}, err
-		}
-
-		_ = meta.SetStatusCondition(&wg.Status.Conditions,
-			metav1.Condition{
-				Type:    TypeGeneratingWireguardConfig,
-				Status:  metav1.ConditionTrue,
-				Reason:  "Reconciling",
-				Message: "Config generator script pod created",
-			},
-		)
-		if err := r.Status().Update(ctx, wg); err != nil {
-			log.Error(err, "Failed to update wireguard config status")
-			return ctrl.Result{}, err
-		} else {
-			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
-		}
+	if len(podList.Items) == 0 {
+		log.Info("Creating pod to generate wireguard config")
+		return r.createGenPod(ctx, wg)
 	}
 
 	return ctrl.Result{}, nil
@@ -179,47 +122,115 @@ func (r *WireguardConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *WireguardConfigReconciler) initGenPod(p *corev1.Pod, c *piav1alpha1.WireguardConfig) {
-	p.Name = "generate-config"
-	p.Namespace = c.Namespace
-	p.Spec = corev1.PodSpec{
-		Containers: []corev1.Container{
-			{
-				Name:  "generate-config",
-				Image: "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0",
-				Env: []corev1.EnvVar{
-					getEnvVar("PIA_USER", c.Spec.Username),
-					getEnvVar("PIA_PASS", c.Spec.Password),
-					{Name: "PIA_PF", Value: "false"},
-					{Name: "PIA_CONNECT", Value: "false"},
-					{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
-					{Name: "VPN_PROTOCOL", Value: "wireguard"},
-					{Name: "DISABLE_IPV6", Value: "no"},
-					{Name: "DIP_TOKEN", Value: "no"},
-					{Name: "AUTOCONNECT", Value: "true"},
-				},
-				VolumeMounts: []corev1.VolumeMount{{
-					Name:      "results",
-					MountPath: "/out",
-				}},
+func (r *WireguardConfigReconciler) createGenPod(ctx context.Context, c *piav1alpha1.WireguardConfig) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	if !hasValue(c.Spec.Username) {
+		_ = meta.SetStatusCondition(&c.Status.Conditions,
+			metav1.Condition{
+				Type:    TypeErrorWireguardConfig,
+				Status:  metav1.ConditionTrue,
+				Reason:  "Invalid",
+				Message: "Configuration is missing username",
 			},
-			{
-				Name:    "results",
-				Image:   "busybox:latest",
-				Command: []string{"sh", "-c", "sleep infinity"},
-				VolumeMounts: []corev1.VolumeMount{{
-					Name:      "results",
-					ReadOnly:  true,
-					MountPath: "/out",
-				}},
+		)
+		if err := r.Status().Update(ctx, c); err != nil {
+			log.Error(err, "Failed to update wireguard config status")
+			return ctrl.Result{}, err
+		} else {
+			log.Info("Spec is missing username")
+			return ctrl.Result{}, nil
+		}
+	}
+
+	if !hasValue(c.Spec.Password) {
+		_ = meta.SetStatusCondition(&c.Status.Conditions,
+			metav1.Condition{
+				Type:    TypeErrorWireguardConfig,
+				Status:  metav1.ConditionTrue,
+				Reason:  "Invalid",
+				Message: "Configuration is missing password",
+			},
+		)
+		if err := r.Status().Update(ctx, c); err != nil {
+			log.Error(err, "Failed to update wireguard config status")
+			return ctrl.Result{}, err
+		} else {
+			log.Info("Spec is missing password")
+			return ctrl.Result{}, nil
+		}
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "generate-config-",
+			Namespace:    c.Namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":   "thecluster-operator",
+				"pia.thecluster.io/config": c.Name,
 			},
 		},
-		Volumes: []corev1.Volume{{
-			Name: "results",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "generate-config",
+					Image: "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0",
+					Env: []corev1.EnvVar{
+						getEnvVar("PIA_USER", c.Spec.Username),
+						getEnvVar("PIA_PASS", c.Spec.Password),
+						{Name: "PIA_PF", Value: "false"},
+						{Name: "PIA_CONNECT", Value: "false"},
+						{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
+						{Name: "VPN_PROTOCOL", Value: "wireguard"},
+						{Name: "DISABLE_IPV6", Value: "no"},
+						{Name: "DIP_TOKEN", Value: "no"},
+						{Name: "AUTOCONNECT", Value: "true"},
+					},
+					VolumeMounts: []corev1.VolumeMount{{
+						Name:      "results",
+						MountPath: "/out",
+					}},
+				},
+				{
+					Name:    "results",
+					Image:   "busybox:latest",
+					Command: []string{"sh", "-c", "sleep infinity"},
+					VolumeMounts: []corev1.VolumeMount{{
+						Name:      "results",
+						ReadOnly:  true,
+						MountPath: "/out",
+					}},
+				},
 			},
-		}},
+			Volumes: []corev1.Volume{{
+				Name: "results",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			}},
+		},
+	}
+
+	if err := ctrl.SetControllerReference(c, pod, r.Scheme); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := r.Create(ctx, pod); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	_ = meta.SetStatusCondition(&c.Status.Conditions,
+		metav1.Condition{
+			Type:    TypeGeneratingWireguardConfig,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Reconciling",
+			Message: "Config generator script pod created",
+		},
+	)
+	if err := r.Status().Update(ctx, c); err != nil {
+		log.Error(err, "Failed to update wireguard config status")
+		return ctrl.Result{}, err
+	} else {
+		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 	}
 }
 
