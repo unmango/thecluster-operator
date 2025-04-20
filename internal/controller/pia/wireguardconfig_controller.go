@@ -107,8 +107,7 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			return ctrl.Result{}, err
 		}
 
-		username := wg.Spec.Username
-		if username.Value == "" && username.SecretKeyRef == nil {
+		if !hasValue(wg.Spec.Username) {
 			_ = meta.SetStatusCondition(&wg.Status.Conditions,
 				metav1.Condition{
 					Type:    TypeErrorWireguardConfig,
@@ -126,8 +125,7 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			}
 		}
 
-		password := wg.Spec.Password
-		if password.Value == "" && password.SecretKeyRef == nil {
+		if !hasValue(wg.Spec.Password) {
 			_ = meta.SetStatusCondition(&wg.Status.Conditions,
 				metav1.Condition{
 					Type:    TypeErrorWireguardConfig,
@@ -172,38 +170,26 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager sets up the controller with the Manager.
+func (r *WireguardConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&piav1alpha1.WireguardConfig{}).
+		Named("pia-wireguardconfig").
+		Owns(&corev1.ConfigMap{}).
+		Complete(r)
+}
+
 func (r *WireguardConfigReconciler) initGenPod(p *corev1.Pod, c *piav1alpha1.WireguardConfig) {
 	p.Name = "generate-config"
 	p.Namespace = c.Namespace
-
-	userEnv := corev1.EnvVar{
-		Name:  "PIA_USER",
-		Value: c.Spec.Username.Value,
-	}
-	if ref := c.Spec.Username.SecretKeyRef; ref != nil {
-		userEnv.ValueFrom = &corev1.EnvVarSource{
-			SecretKeyRef: ref,
-		}
-	}
-
-	passEnv := corev1.EnvVar{
-		Name:  "PIA_PASS",
-		Value: c.Spec.Password.Value,
-	}
-	if ref := c.Spec.Password.SecretKeyRef; ref != nil {
-		passEnv.ValueFrom = &corev1.EnvVarSource{
-			SecretKeyRef: ref,
-		}
-	}
-
 	p.Spec = corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
 				Name:  "generate-config",
 				Image: "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0",
 				Env: []corev1.EnvVar{
-					userEnv,
-					passEnv,
+					getEnvVar("PIA_USER", c.Spec.Username),
+					getEnvVar("PIA_PASS", c.Spec.Password),
 					{Name: "PIA_PF", Value: "false"},
 					{Name: "PIA_CONNECT", Value: "false"},
 					{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
@@ -237,11 +223,35 @@ func (r *WireguardConfigReconciler) initGenPod(p *corev1.Pod, c *piav1alpha1.Wir
 	}
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *WireguardConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&piav1alpha1.WireguardConfig{}).
-		Named("pia-wireguardconfig").
-		Owns(&corev1.ConfigMap{}).
-		Complete(r)
+func hasValue(config piav1alpha1.WireguardClientConfigValue) bool {
+	if config.Value != "" {
+		return true
+	}
+	if config.SecretKeyRef != nil {
+		return true
+	}
+	if config.ConfigMapKeyRef != nil {
+		return true
+	}
+
+	return false
+}
+
+func getEnvVar(name string, config piav1alpha1.WireguardClientConfigValue) corev1.EnvVar {
+	env := corev1.EnvVar{
+		Name:  name,
+		Value: config.Value,
+	}
+	if ref := config.SecretKeyRef; ref != nil {
+		env.ValueFrom = &corev1.EnvVarSource{
+			SecretKeyRef: ref,
+		}
+	}
+	if ref := config.ConfigMapKeyRef; ref != nil {
+		env.ValueFrom = &corev1.EnvVarSource{
+			ConfigMapKeyRef: ref,
+		}
+	}
+
+	return env
 }
