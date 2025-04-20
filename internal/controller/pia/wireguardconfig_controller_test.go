@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
@@ -80,13 +81,15 @@ var _ = Describe("WireguardConfig Controller", func() {
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 
 			By("Deleting any generate pods")
-			genPodName := types.NamespacedName{
-				Namespace: typeNamespacedName.Namespace,
-				Name:      "generate-config",
-			}
-			genPod := &corev1.Pod{}
-			if err = k8sClient.Get(ctx, genPodName, genPod); err == nil {
-				Expect(k8sClient.Delete(ctx, genPod)).To(Succeed())
+			podList := &corev1.PodList{}
+			err = k8sClient.List(ctx, podList, client.MatchingLabels{
+				"app.kubernetes.io/name":   "thecluster-operator",
+				"pia.thecluster.io/config": typeNamespacedName.Name,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			for _, pod := range podList.Items {
+				Expect(k8sClient.Delete(ctx, &pod)).To(Succeed())
 			}
 		})
 
@@ -113,15 +116,18 @@ var _ = Describe("WireguardConfig Controller", func() {
 			)
 			Expect(generating).To(BeTrueBecause("The config is generating"))
 
-			podName := types.NamespacedName{
-				Namespace: typeNamespacedName.Namespace,
-				Name:      "generate-config",
-			}
-			pod := &corev1.Pod{}
+			podList := &corev1.PodList{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, podName, pod)
+				return k8sClient.List(ctx, podList, client.MatchingLabels{
+					"app.kubernetes.io/name":   "thecluster-operator",
+					"pia.thecluster.io/config": typeNamespacedName.Name,
+				})
 			}).Should(Succeed())
 
+			Expect(podList.Items).To(HaveLen(1))
+			pod := podList.Items[0]
+
+			Expect(pod.Name).To(HavePrefix("generate-config-"))
 			Expect(pod.OwnerReferences).To(ConsistOf(And(
 				HaveField("Kind", "WireguardConfig"),
 				HaveField("Name", resourceName),
@@ -231,15 +237,18 @@ var _ = Describe("WireguardConfig Controller", func() {
 				)
 				Expect(generating).To(BeTrueBecause("The config is generating"))
 
-				podName := types.NamespacedName{
-					Namespace: typeNamespacedName.Namespace,
-					Name:      "generate-config",
-				}
-				pod := &corev1.Pod{}
+				podList := &corev1.PodList{}
 				Eventually(func() error {
-					return k8sClient.Get(ctx, podName, pod)
+					return k8sClient.List(ctx, podList, client.MatchingLabels{
+						"app.kubernetes.io/name":   "thecluster-operator",
+						"pia.thecluster.io/config": typeNamespacedName.Name,
+					})
 				}).Should(Succeed())
 
+				Expect(podList.Items).To(HaveLen(1))
+				pod := podList.Items[0]
+
+				Expect(pod.Name).To(HavePrefix("generate-config-"))
 				Expect(pod.OwnerReferences).To(ConsistOf(And(
 					HaveField("Kind", "WireguardConfig"),
 					HaveField("Name", resourceName),
@@ -355,15 +364,18 @@ var _ = Describe("WireguardConfig Controller", func() {
 				)
 				Expect(generating).To(BeTrueBecause("The config is generating"))
 
-				podName := types.NamespacedName{
-					Namespace: typeNamespacedName.Namespace,
-					Name:      "generate-config",
-				}
-				pod := &corev1.Pod{}
+				podList := &corev1.PodList{}
 				Eventually(func() error {
-					return k8sClient.Get(ctx, podName, pod)
+					return k8sClient.List(ctx, podList, client.MatchingLabels{
+						"app.kubernetes.io/name":   "thecluster-operator",
+						"pia.thecluster.io/config": typeNamespacedName.Name,
+					})
 				}).Should(Succeed())
 
+				Expect(podList.Items).To(HaveLen(1))
+				pod := podList.Items[0]
+
+				Expect(pod.Name).To(HavePrefix("generate-config-"))
 				Expect(pod.OwnerReferences).To(ConsistOf(And(
 					HaveField("Kind", "WireguardConfig"),
 					HaveField("Name", resourceName),
@@ -479,15 +491,18 @@ var _ = Describe("WireguardConfig Controller", func() {
 				)
 				Expect(generating).To(BeTrueBecause("The config is generating"))
 
-				podName := types.NamespacedName{
-					Namespace: typeNamespacedName.Namespace,
-					Name:      "generate-config",
-				}
-				pod := &corev1.Pod{}
+				podList := &corev1.PodList{}
 				Eventually(func() error {
-					return k8sClient.Get(ctx, podName, pod)
+					return k8sClient.List(ctx, podList, client.MatchingLabels{
+						"app.kubernetes.io/name":   "thecluster-operator",
+						"pia.thecluster.io/config": typeNamespacedName.Name,
+					})
 				}).Should(Succeed())
 
+				Expect(podList.Items).To(HaveLen(1))
+				pod := podList.Items[0]
+
+				Expect(pod.Name).To(HavePrefix("generate-config-"))
 				Expect(pod.OwnerReferences).To(ConsistOf(And(
 					HaveField("Kind", "WireguardConfig"),
 					HaveField("Name", resourceName),
@@ -603,15 +618,18 @@ var _ = Describe("WireguardConfig Controller", func() {
 				)
 				Expect(generating).To(BeTrueBecause("The config is generating"))
 
-				podName := types.NamespacedName{
-					Namespace: typeNamespacedName.Namespace,
-					Name:      "generate-config",
-				}
-				pod := &corev1.Pod{}
+				podList := &corev1.PodList{}
 				Eventually(func() error {
-					return k8sClient.Get(ctx, podName, pod)
+					return k8sClient.List(ctx, podList, client.MatchingLabels{
+						"app.kubernetes.io/name":   "thecluster-operator",
+						"pia.thecluster.io/config": typeNamespacedName.Name,
+					})
 				}).Should(Succeed())
 
+				Expect(podList.Items).To(HaveLen(1))
+				pod := podList.Items[0]
+
+				Expect(pod.Name).To(HavePrefix("generate-config-"))
 				Expect(pod.OwnerReferences).To(ConsistOf(And(
 					HaveField("Kind", "WireguardConfig"),
 					HaveField("Name", resourceName),
