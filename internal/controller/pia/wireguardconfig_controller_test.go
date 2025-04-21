@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -116,63 +117,64 @@ var _ = Describe("WireguardConfig Controller", func() {
 			)
 			Expect(generating).To(BeTrueBecause("The config is generating"))
 
-			podList := &corev1.PodList{}
+			jobList := &batchv1.JobList{}
 			Eventually(func() error {
-				return k8sClient.List(ctx, podList, client.MatchingLabels{
+				return k8sClient.List(ctx, jobList, client.MatchingLabels{
 					"app.kubernetes.io/name":   "thecluster-operator",
 					"pia.thecluster.io/config": typeNamespacedName.Name,
 				})
 			}).Should(Succeed())
 
-			Expect(podList.Items).To(HaveLen(1))
-			pod := podList.Items[0]
+			Expect(jobList.Items).To(HaveLen(1))
+			job := jobList.Items[0]
 
-			Expect(pod.Name).To(HavePrefix("generate-config-"))
-			Expect(pod.OwnerReferences).To(ConsistOf(And(
+			Expect(job.Name).To(HavePrefix("generate-config-"))
+			Expect(job.OwnerReferences).To(ConsistOf(And(
 				HaveField("Kind", "WireguardConfig"),
 				HaveField("Name", resourceName),
 			)))
 
-			Expect(pod.Spec.Volumes).To(ConsistOf(
-				corev1.Volume{
-					Name: "results",
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{},
-					},
+			templateSpec := job.Spec.Template.Spec
+			Expect(templateSpec.Volumes).To(ConsistOf(corev1.Volume{
+				Name: "results",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
-			))
+			}))
 
-			Expect(pod.Spec.Containers).To(ConsistOf(
-				And(
-					HaveField("Name", "generate-config"),
-					HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
-					HaveField("Env", []corev1.EnvVar{
-						{Name: "PIA_USER", Value: piaUser},
-						{Name: "PIA_PASS", Value: piaPass},
-						{Name: "PIA_PF", Value: "false"},
-						{Name: "PIA_CONNECT", Value: "false"},
-						{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
-						{Name: "VPN_PROTOCOL", Value: "wireguard"},
-						{Name: "DISABLE_IPV6", Value: "no"},
-						{Name: "DIP_TOKEN", Value: "no"},
-						{Name: "AUTOCONNECT", Value: "true"},
-					}),
-					HaveField("VolumeMounts", []corev1.VolumeMount{{
-						Name:      "results",
-						MountPath: "/out",
-					}}),
-				),
-				And(
-					HaveField("Name", "results"),
-					HaveField("Image", "busybox:latest"),
-					HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
-					HaveField("VolumeMounts", []corev1.VolumeMount{{
-						Name:      "results",
-						ReadOnly:  true,
-						MountPath: "/out",
-					}}),
-				),
+			Expect(templateSpec.InitContainers).To(HaveLen(1))
+			initContainer := templateSpec.InitContainers[0]
+			Expect(initContainer.Name).To(Equal("generate-config"))
+			Expect(initContainer.Image).To(HavePrefix("unstoppablemango/pia-manual-connections:"))
+			Expect(initContainer.Env).To(ConsistOf(
+				corev1.EnvVar{Name: "PIA_USER", Value: piaUser},
+				corev1.EnvVar{Name: "PIA_PASS", Value: piaPass},
+				corev1.EnvVar{Name: "PIA_PF", Value: "false"},
+				corev1.EnvVar{Name: "PIA_CONNECT", Value: "false"},
+				corev1.EnvVar{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
+				corev1.EnvVar{Name: "VPN_PROTOCOL", Value: "wireguard"},
+				corev1.EnvVar{Name: "DISABLE_IPV6", Value: "no"},
+				corev1.EnvVar{Name: "DIP_TOKEN", Value: "no"},
+				corev1.EnvVar{Name: "AUTOCONNECT", Value: "true"},
 			))
+			Expect(initContainer.VolumeMounts).To(ConsistOf(corev1.VolumeMount{
+				Name:      "results",
+				MountPath: "/out",
+			}))
+
+			Expect(templateSpec.Containers).To(HaveLen(1))
+			container := templateSpec.Containers[0]
+			Expect(container.Name).To(Equal("create-secret"))
+			Expect(container.Image).To(HavePrefix("bitnami/kubectl:"))
+			Expect(container.Command).To(HaveExactElements(
+				"create", "configmap", typeNamespacedName.Name,
+				"--namespace", typeNamespacedName.Namespace,
+				"--from-file=/out",
+			))
+			Expect(container.VolumeMounts).To(ConsistOf(corev1.VolumeMount{
+				Name:      "results",
+				MountPath: "/out",
+			}))
 		})
 
 		When("username is provided in a secret", func() {
