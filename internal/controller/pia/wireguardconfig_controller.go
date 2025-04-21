@@ -17,13 +17,18 @@ limitations under the License.
 package pia
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/internalversion/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -31,11 +36,16 @@ import (
 	piav1alpha1 "github.com/unmango/thecluster-operator/api/pia/v1alpha1"
 )
 
-var (
+const (
 	TypeAvailableWireguardConfig  = "Available"
 	TypeErrorWireguardConfig      = "Error"
 	TypeGeneratingWireguardConfig = "Generating"
 	WireguardConfigFinalizer      = "wireguardconfig.pia.thecluster.io/finalizer"
+
+	resultsContainerName = "results"
+	resultsVolumeName    = "results"
+	defaultConfPath      = "/out/pia0.conf"
+	defaultSecretKey     = "pia0.conf"
 )
 
 // WireguardConfigReconciler reconciles a WireguardConfig object
@@ -105,12 +115,28 @@ func (r *WireguardConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	if len(podList.Items) == 0 {
+	var genPod corev1.Pod
+	switch len(podList.Items) {
+	case 0:
 		log.Info("Creating pod to generate wireguard config")
 		return r.createGenPod(ctx, wg)
+	case 1:
+		log.Info("Found config generator pod")
+		genPod = podList.Items[0]
+	default:
+		// TODO: Cleanup extra pods
+		genPod = podList.Items[0]
 	}
 
-	return ctrl.Result{}, nil
+	log.Info("Attempting to read generated wireguard configuration")
+	output, err := r.readGenOutput(ctx, genPod)
+	if err != nil {
+		log.Info("Failed reading generated configuration", "err", err)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
+	log.Info("Creting wireguard config secret")
+	return r.createConfigSecret(ctx, wg, output.String())
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -187,23 +213,23 @@ func (r *WireguardConfigReconciler) createGenPod(ctx context.Context, c *piav1al
 						{Name: "AUTOCONNECT", Value: "true"},
 					},
 					VolumeMounts: []corev1.VolumeMount{{
-						Name:      "results",
+						Name:      resultsVolumeName,
 						MountPath: "/out",
 					}},
 				},
 				{
-					Name:    "results",
+					Name:    resultsContainerName,
 					Image:   "busybox:latest",
 					Command: []string{"sh", "-c", "sleep infinity"},
 					VolumeMounts: []corev1.VolumeMount{{
-						Name:      "results",
+						Name:      resultsVolumeName,
 						ReadOnly:  true,
 						MountPath: "/out",
 					}},
 				},
 			},
 			Volumes: []corev1.Volume{{
-				Name: "results",
+				Name: resultsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -232,6 +258,97 @@ func (r *WireguardConfigReconciler) createGenPod(ctx context.Context, c *piav1al
 	} else {
 		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 	}
+}
+
+func (r *WireguardConfigReconciler) createConfigSecret(
+	ctx context.Context,
+	c *piav1alpha1.WireguardConfig,
+	config string,
+) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      c.Name,
+			Namespace: c.Namespace,
+		},
+		StringData: map[string]string{
+			defaultSecretKey: config,
+		},
+	}
+
+	if err := ctrl.SetControllerReference(c, secret, r.Scheme); err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := r.Create(ctx, secret); err != nil {
+		return ctrl.Result{}, fmt.Errorf("creating secret: %w", err)
+	}
+
+	_ = meta.SetStatusCondition(&c.Status.Conditions,
+		metav1.Condition{
+			Type:    TypeAvailableWireguardConfig,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Reconciling",
+			Message: "Wireguard config secret created",
+		},
+	)
+	if err := r.Status().Update(ctx, c); err != nil {
+		log.Error(err, "Failed to update wireguard config status")
+		return ctrl.Result{}, err
+	} else {
+		return ctrl.Result{}, nil
+	}
+}
+
+func (r *WireguardConfigReconciler) readGenOutput(ctx context.Context, pod corev1.Pod) (*bytes.Buffer, error) {
+	config, err := ctrl.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := rest.RESTClientFor(config)
+	if err != nil {
+		return nil, err
+	}
+
+	// https://github.com/kubernetes/kubectl/blob/72b3a7e9b0e99ba874ffe7dd85f9dfd756239dd1/pkg/cmd/exec/exec.go#L377-L397
+	// https://stackoverflow.com/a/58297576
+
+	req := client.Post().
+		Resource("pods").
+		Name(pod.Name).
+		Namespace(pod.Namespace).
+		SubResource("exec")
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: resultsContainerName,
+		Command:   []string{"cat", defaultConfPath},
+		Stdout:    true,
+		Stderr:    true,
+	}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		return nil, err
+	}
+
+	log := logf.FromContext(ctx)
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+	if err != nil {
+		log.Error(err, "Failed to exec pod",
+			"stdout", stdout.String(),
+			"stderr", stderr.String(),
+		)
+		return nil, err
+	}
+	if stderr.Len() > 0 {
+		log.Info("Stderr was not empty", "stderr", stderr.String())
+	}
+
+	return stdout, nil
 }
 
 func hasValue(config piav1alpha1.WireguardClientConfigValue) bool {

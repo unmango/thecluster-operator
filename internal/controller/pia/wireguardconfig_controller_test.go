@@ -742,24 +742,24 @@ var _ = Describe("WireguardConfig Controller", func() {
 			})
 		})
 
-		When("a matching config exists", func() {
-			BeforeEach(func(ctx context.Context) {
-				By("Creating a matching config map")
-				cm := &corev1.ConfigMap{
+		When("a matching secret exists", func() {
+			BeforeEach(func() {
+				By("Creating a matching secret")
+				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      typeNamespacedName.Name,
 						Namespace: typeNamespacedName.Namespace,
 					},
-					Data: map[string]string{},
+					StringData: map[string]string{},
 				}
-				Expect(k8sClient.Create(ctx, cm)).To(Succeed())
+				Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 			})
 
-			AfterEach(func(ctx context.Context) {
-				By("Cleaning up the config map")
-				cm := &corev1.ConfigMap{}
-				if err := k8sClient.Get(ctx, typeNamespacedName, cm); err == nil {
-					Expect(k8sClient.Delete(ctx, cm)).To(Succeed())
+			AfterEach(func() {
+				By("Cleaning up the secret")
+				secret := &corev1.Secret{}
+				if err := k8sClient.Get(ctx, typeNamespacedName, secret); err == nil {
+					Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
 				}
 			})
 
