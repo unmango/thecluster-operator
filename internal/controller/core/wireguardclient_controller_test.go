@@ -48,7 +48,7 @@ var _ = Describe("WireguardClient Controller", func() {
 		configMap := &corev1.ConfigMap{}
 		secret := &corev1.Secret{}
 
-		BeforeEach(func(ctx context.Context) {
+		BeforeEach(func() {
 			By("Creating a config map with a client config")
 			err := k8sClient.Get(ctx, typeNamespacedName, configMap)
 			if err != nil && errors.IsNotFound(err) {
@@ -121,7 +121,7 @@ var _ = Describe("WireguardClient Controller", func() {
 			}
 		})
 
-		AfterEach(func(ctx context.Context) {
+		AfterEach(func() {
 			resource := &corev1alpha1.WireguardClient{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())

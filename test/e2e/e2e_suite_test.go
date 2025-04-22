@@ -29,10 +29,11 @@ import (
 )
 
 var (
-	projectImage = "ghcr.io/unmango/thecluster-operator:v0.0.1"
-	skipCertManagerInstall = os.Getenv("CERT_MANAGER_INSTALL_SKIP") == "true"
-)
+	skipCertManagerInstall        = os.Getenv("CERT_MANAGER_INSTALL_SKIP") == "true"
 	isCertManagerAlreadyInstalled = false
+	projectImage                  = "ghcr.io/unmango/thecluster-operator:v0.0.1"
+)
+
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	_, _ = fmt.Fprintf(GinkgoWriter, "Starting thecluster-operator integration test suite\n")
