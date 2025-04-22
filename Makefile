@@ -26,14 +26,16 @@ help: ## Display this help.
 
 ##@ Development
 
-manifests:
+.PHONY: manifests
 manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-helm: manifests
-generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+.PHONY: helm
+helm: manifests ## Regenerate the helm chart in ./dist/chart
+	$(KUBEBUILDER) edit --plugins=helm/v1-alpha
 
-generate:
+.PHONY: generate
+generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
