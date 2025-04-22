@@ -117,17 +117,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 			)
 			Expect(generating).To(BeTrueBecause("The config is generating"))
 
-			jobList := &batchv1.JobList{}
-			Eventually(func() error {
-				return k8sClient.List(ctx, jobList, client.MatchingLabels{
-					"app.kubernetes.io/name":   "thecluster-operator",
-					"pia.thecluster.io/config": typeNamespacedName.Name,
-				})
-			}).Should(Succeed())
-
-			Expect(jobList.Items).To(HaveLen(1))
-			job := jobList.Items[0]
-
+			job := findJob(typeNamespacedName.Name)
 			Expect(job.Name).To(HavePrefix("generate-config-"))
 			Expect(job.OwnerReferences).To(ConsistOf(And(
 				HaveField("Kind", "WireguardConfig"),
@@ -185,7 +175,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				Namespace: typeNamespacedName.Namespace,
 			}
 
-			BeforeEach(func(ctx context.Context) {
+			BeforeEach(func() {
 				By("Creating the secret")
 				sec := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -208,7 +198,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			AfterEach(func(ctx context.Context) {
+			AfterEach(func() {
 				By("Cleaning up the secret")
 				sec := &corev1.Secret{}
 				if err := k8sClient.Get(ctx, secretName, sec); err == nil {
@@ -216,7 +206,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("should create a job to generate the config", func() {
+			It("should set the PIA_USER env var source", func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -228,79 +218,17 @@ var _ = Describe("WireguardConfig Controller", func() {
 				})
 				Expect(err).NotTo(HaveOccurred())
 
-				By("Fetching the config resource")
-				resource := &piav1alpha1.WireguardConfig{}
-				err = k8sClient.Get(ctx, typeNamespacedName, resource)
-				Expect(err).NotTo(HaveOccurred())
-
-				generating := meta.IsStatusConditionTrue(
-					resource.Status.Conditions,
-					TypeGeneratingWireguardConfig,
-				)
-				Expect(generating).To(BeTrueBecause("The config is generating"))
-
-				podList := &corev1.PodList{}
-				Eventually(func() error {
-					return k8sClient.List(ctx, podList, client.MatchingLabels{
-						"app.kubernetes.io/name":   "thecluster-operator",
-						"pia.thecluster.io/config": typeNamespacedName.Name,
-					})
-				}).Should(Succeed())
-
-				Expect(podList.Items).To(HaveLen(1))
-				pod := podList.Items[0]
-
-				Expect(pod.Name).To(HavePrefix("generate-config-"))
-				Expect(pod.OwnerReferences).To(ConsistOf(And(
-					HaveField("Kind", "WireguardConfig"),
-					HaveField("Name", resourceName),
-				)))
-
-				Expect(pod.Spec.Volumes).To(ConsistOf(
-					corev1.Volume{
-						Name: "results",
-						VolumeSource: corev1.VolumeSource{
-							EmptyDir: &corev1.EmptyDirVolumeSource{},
-						},
+				job := findJob(typeNamespacedName.Name)
+				var initContainer *corev1.Container
+				Expect(job.Spec.Template.Spec.InitContainers).To(ContainElement(
+					HaveField("Name", "generate-config"), initContainer,
+				))
+				Expect(initContainer.Env).To(ContainElement(corev1.EnvVar{
+					Name: "PIA_USER",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: wireguardconfig.Spec.Username.SecretKeyRef,
 					},
-				))
-
-				Expect(pod.Spec.Containers).To(ConsistOf(
-					And(
-						HaveField("Name", "generate-config"),
-						HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
-						HaveField("Env", []corev1.EnvVar{
-							{
-								Name: "PIA_USER",
-								ValueFrom: &corev1.EnvVarSource{
-									SecretKeyRef: resource.Spec.Username.SecretKeyRef,
-								},
-							},
-							{Name: "PIA_PASS", Value: piaPass},
-							{Name: "PIA_PF", Value: "false"},
-							{Name: "PIA_CONNECT", Value: "false"},
-							{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
-							{Name: "VPN_PROTOCOL", Value: "wireguard"},
-							{Name: "DISABLE_IPV6", Value: "no"},
-							{Name: "DIP_TOKEN", Value: "no"},
-							{Name: "AUTOCONNECT", Value: "true"},
-						}),
-						HaveField("VolumeMounts", []corev1.VolumeMount{{
-							Name:      "results",
-							MountPath: "/out",
-						}}),
-					),
-					And(
-						HaveField("Name", "results"),
-						HaveField("Image", "busybox:latest"),
-						HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
-						HaveField("VolumeMounts", []corev1.VolumeMount{{
-							Name:      "results",
-							ReadOnly:  true,
-							MountPath: "/out",
-						}}),
-					),
-				))
+				}))
 			})
 		})
 
@@ -343,7 +271,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("should create a job to generate the config", func() {
+			It("should set the PIA_PASS env var source", func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -355,79 +283,17 @@ var _ = Describe("WireguardConfig Controller", func() {
 				})
 				Expect(err).NotTo(HaveOccurred())
 
-				By("Fetching the config resource")
-				resource := &piav1alpha1.WireguardConfig{}
-				err = k8sClient.Get(ctx, typeNamespacedName, resource)
-				Expect(err).NotTo(HaveOccurred())
-
-				generating := meta.IsStatusConditionTrue(
-					resource.Status.Conditions,
-					TypeGeneratingWireguardConfig,
-				)
-				Expect(generating).To(BeTrueBecause("The config is generating"))
-
-				podList := &corev1.PodList{}
-				Eventually(func() error {
-					return k8sClient.List(ctx, podList, client.MatchingLabels{
-						"app.kubernetes.io/name":   "thecluster-operator",
-						"pia.thecluster.io/config": typeNamespacedName.Name,
-					})
-				}).Should(Succeed())
-
-				Expect(podList.Items).To(HaveLen(1))
-				pod := podList.Items[0]
-
-				Expect(pod.Name).To(HavePrefix("generate-config-"))
-				Expect(pod.OwnerReferences).To(ConsistOf(And(
-					HaveField("Kind", "WireguardConfig"),
-					HaveField("Name", resourceName),
-				)))
-
-				Expect(pod.Spec.Volumes).To(ConsistOf(
-					corev1.Volume{
-						Name: "results",
-						VolumeSource: corev1.VolumeSource{
-							EmptyDir: &corev1.EmptyDirVolumeSource{},
-						},
+				job := findJob(typeNamespacedName.Name)
+				var initContainer *corev1.Container
+				Expect(job.Spec.Template.Spec.InitContainers).To(ContainElement(
+					HaveField("Name", "generate-config"), initContainer,
+				))
+				Expect(initContainer.Env).To(ContainElement(corev1.EnvVar{
+					Name: "PIA_PASS",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: wireguardconfig.Spec.Password.SecretKeyRef,
 					},
-				))
-
-				Expect(pod.Spec.Containers).To(ConsistOf(
-					And(
-						HaveField("Name", "generate-config"),
-						HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
-						HaveField("Env", []corev1.EnvVar{
-							{Name: "PIA_USER", Value: piaUser},
-							{
-								Name: "PIA_PASS",
-								ValueFrom: &corev1.EnvVarSource{
-									SecretKeyRef: resource.Spec.Password.SecretKeyRef,
-								},
-							},
-							{Name: "PIA_PF", Value: "false"},
-							{Name: "PIA_CONNECT", Value: "false"},
-							{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
-							{Name: "VPN_PROTOCOL", Value: "wireguard"},
-							{Name: "DISABLE_IPV6", Value: "no"},
-							{Name: "DIP_TOKEN", Value: "no"},
-							{Name: "AUTOCONNECT", Value: "true"},
-						}),
-						HaveField("VolumeMounts", []corev1.VolumeMount{{
-							Name:      "results",
-							MountPath: "/out",
-						}}),
-					),
-					And(
-						HaveField("Name", "results"),
-						HaveField("Image", "busybox:latest"),
-						HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
-						HaveField("VolumeMounts", []corev1.VolumeMount{{
-							Name:      "results",
-							ReadOnly:  true,
-							MountPath: "/out",
-						}}),
-					),
-				))
+				}))
 			})
 		})
 
@@ -470,7 +336,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("should create a job to generate the config", func() {
+			It("should set the PIA_USER env var source", func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -482,79 +348,17 @@ var _ = Describe("WireguardConfig Controller", func() {
 				})
 				Expect(err).NotTo(HaveOccurred())
 
-				By("Fetching the config resource")
-				resource := &piav1alpha1.WireguardConfig{}
-				err = k8sClient.Get(ctx, typeNamespacedName, resource)
-				Expect(err).NotTo(HaveOccurred())
-
-				generating := meta.IsStatusConditionTrue(
-					resource.Status.Conditions,
-					TypeGeneratingWireguardConfig,
-				)
-				Expect(generating).To(BeTrueBecause("The config is generating"))
-
-				podList := &corev1.PodList{}
-				Eventually(func() error {
-					return k8sClient.List(ctx, podList, client.MatchingLabels{
-						"app.kubernetes.io/name":   "thecluster-operator",
-						"pia.thecluster.io/config": typeNamespacedName.Name,
-					})
-				}).Should(Succeed())
-
-				Expect(podList.Items).To(HaveLen(1))
-				pod := podList.Items[0]
-
-				Expect(pod.Name).To(HavePrefix("generate-config-"))
-				Expect(pod.OwnerReferences).To(ConsistOf(And(
-					HaveField("Kind", "WireguardConfig"),
-					HaveField("Name", resourceName),
-				)))
-
-				Expect(pod.Spec.Volumes).To(ConsistOf(
-					corev1.Volume{
-						Name: "results",
-						VolumeSource: corev1.VolumeSource{
-							EmptyDir: &corev1.EmptyDirVolumeSource{},
-						},
+				job := findJob(typeNamespacedName.Name)
+				var initContainer *corev1.Container
+				Expect(job.Spec.Template.Spec.InitContainers).To(ContainElement(
+					HaveField("Name", "generate-config"), initContainer,
+				))
+				Expect(initContainer.Env).To(ContainElement(corev1.EnvVar{
+					Name: "PIA_USER",
+					ValueFrom: &corev1.EnvVarSource{
+						ConfigMapKeyRef: wireguardconfig.Spec.Username.ConfigMapKeyRef,
 					},
-				))
-
-				Expect(pod.Spec.Containers).To(ConsistOf(
-					And(
-						HaveField("Name", "generate-config"),
-						HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
-						HaveField("Env", []corev1.EnvVar{
-							{
-								Name: "PIA_USER",
-								ValueFrom: &corev1.EnvVarSource{
-									ConfigMapKeyRef: resource.Spec.Username.ConfigMapKeyRef,
-								},
-							},
-							{Name: "PIA_PASS", Value: piaPass},
-							{Name: "PIA_PF", Value: "false"},
-							{Name: "PIA_CONNECT", Value: "false"},
-							{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
-							{Name: "VPN_PROTOCOL", Value: "wireguard"},
-							{Name: "DISABLE_IPV6", Value: "no"},
-							{Name: "DIP_TOKEN", Value: "no"},
-							{Name: "AUTOCONNECT", Value: "true"},
-						}),
-						HaveField("VolumeMounts", []corev1.VolumeMount{{
-							Name:      "results",
-							MountPath: "/out",
-						}}),
-					),
-					And(
-						HaveField("Name", "results"),
-						HaveField("Image", "busybox:latest"),
-						HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
-						HaveField("VolumeMounts", []corev1.VolumeMount{{
-							Name:      "results",
-							ReadOnly:  true,
-							MountPath: "/out",
-						}}),
-					),
-				))
+				}))
 			})
 		})
 
@@ -597,7 +401,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("should create a job to generate the config", func() {
+			It("should set the PIA_PASS env var source", func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -609,119 +413,62 @@ var _ = Describe("WireguardConfig Controller", func() {
 				})
 				Expect(err).NotTo(HaveOccurred())
 
-				By("Fetching the config resource")
-				resource := &piav1alpha1.WireguardConfig{}
-				err = k8sClient.Get(ctx, typeNamespacedName, resource)
-				Expect(err).NotTo(HaveOccurred())
-
-				generating := meta.IsStatusConditionTrue(
-					resource.Status.Conditions,
-					TypeGeneratingWireguardConfig,
-				)
-				Expect(generating).To(BeTrueBecause("The config is generating"))
-
-				podList := &corev1.PodList{}
-				Eventually(func() error {
-					return k8sClient.List(ctx, podList, client.MatchingLabels{
-						"app.kubernetes.io/name":   "thecluster-operator",
-						"pia.thecluster.io/config": typeNamespacedName.Name,
-					})
-				}).Should(Succeed())
-
-				Expect(podList.Items).To(HaveLen(1))
-				pod := podList.Items[0]
-
-				Expect(pod.Name).To(HavePrefix("generate-config-"))
-				Expect(pod.OwnerReferences).To(ConsistOf(And(
-					HaveField("Kind", "WireguardConfig"),
-					HaveField("Name", resourceName),
-				)))
-
-				Expect(pod.Spec.Volumes).To(ConsistOf(
-					corev1.Volume{
-						Name: "results",
-						VolumeSource: corev1.VolumeSource{
-							EmptyDir: &corev1.EmptyDirVolumeSource{},
-						},
+				job := findJob(typeNamespacedName.Name)
+				var initContainer *corev1.Container
+				Expect(job.Spec.Template.Spec.InitContainers).To(ContainElement(
+					HaveField("Name", "generate-config"), initContainer,
+				))
+				Expect(initContainer.Env).To(ContainElement(corev1.EnvVar{
+					Name: "PIA_PASS",
+					ValueFrom: &corev1.EnvVarSource{
+						ConfigMapKeyRef: wireguardconfig.Spec.Password.ConfigMapKeyRef,
 					},
-				))
-
-				Expect(pod.Spec.Containers).To(ConsistOf(
-					And(
-						HaveField("Name", "generate-config"),
-						HaveField("Image", "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0"),
-						HaveField("Env", []corev1.EnvVar{
-							{Name: "PIA_USER", Value: piaUser},
-							{
-								Name: "PIA_PASS",
-								ValueFrom: &corev1.EnvVarSource{
-									ConfigMapKeyRef: resource.Spec.Password.ConfigMapKeyRef,
-								},
-							},
-							{Name: "PIA_PF", Value: "false"},
-							{Name: "PIA_CONNECT", Value: "false"},
-							{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
-							{Name: "VPN_PROTOCOL", Value: "wireguard"},
-							{Name: "DISABLE_IPV6", Value: "no"},
-							{Name: "DIP_TOKEN", Value: "no"},
-							{Name: "AUTOCONNECT", Value: "true"},
-						}),
-						HaveField("VolumeMounts", []corev1.VolumeMount{{
-							Name:      "results",
-							MountPath: "/out",
-						}}),
-					),
-					And(
-						HaveField("Name", "results"),
-						HaveField("Image", "busybox:latest"),
-						HaveField("Command", []string{"sh", "-c", "sleep infinity"}),
-						HaveField("VolumeMounts", []corev1.VolumeMount{{
-							Name:      "results",
-							ReadOnly:  true,
-							MountPath: "/out",
-						}}),
-					),
-				))
+				}))
 			})
 		})
 
-		When("a matching generate pod exists", func() {
-			const genPodName = "generate-config-fjdsk"
+		When("a matching generate job exists", func() {
+			const jobName = "generate-config-fjdsk"
 
 			BeforeEach(func() {
-				By("creating a generate pod")
-				pod := &corev1.Pod{
+				By("Creating a matching generate job")
+				job := &batchv1.Job{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      genPodName,
+						Name:      jobName,
 						Namespace: typeNamespacedName.Namespace,
 						Labels: map[string]string{
 							"app.kubernetes.io/name":   "thecluster-operator",
 							"pia.thecluster.io/config": typeNamespacedName.Name,
 						},
 					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{{
-							Name:  "stub",
-							Image: "busybox",
-						}},
+					Spec: batchv1.JobSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								RestartPolicy: corev1.RestartPolicyNever,
+								Containers: []corev1.Container{{
+									Name:  "stub",
+									Image: "busybox",
+								}},
+							},
+						},
 					},
 				}
-				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				Expect(k8sClient.Create(ctx, job)).To(Succeed())
 			})
 
 			AfterEach(func() {
-				By("cleaning up the generate pod")
-				podName := types.NamespacedName{
-					Name:      genPodName,
+				By("cleaning up the generate job")
+				namespacedName := types.NamespacedName{
+					Name:      jobName,
 					Namespace: typeNamespacedName.Namespace,
 				}
-				pod := &corev1.Pod{}
-				if err := k8sClient.Get(ctx, podName, pod); err == nil {
-					Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+				job := &batchv1.Job{}
+				if err := k8sClient.Get(ctx, namespacedName, job); err == nil {
+					Expect(k8sClient.Delete(ctx, job)).To(Succeed())
 				}
 			})
 
-			It("should not create any new pods", func() {
+			It("should not create any new jobs", func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -733,28 +480,28 @@ var _ = Describe("WireguardConfig Controller", func() {
 				})
 				Expect(err).NotTo(HaveOccurred())
 
-				By("Listing the pods with matching labels")
-				podList := &corev1.PodList{}
-				err = k8sClient.List(ctx, podList, client.MatchingLabels{
+				By("Listing the jobs with matching labels")
+				jobList := &batchv1.JobList{}
+				err = k8sClient.List(ctx, jobList, client.MatchingLabels{
 					"app.kubernetes.io/name":   "thecluster-operator",
 					"pia.thecluster.io/config": typeNamespacedName.Name,
 				})
 				Expect(err).NotTo(HaveOccurred())
-				Expect(podList.Items).To(HaveLen(1), "too many pods created")
+				Expect(jobList.Items).To(HaveLen(1), "Too many jobs created")
 			})
 		})
 
 		When("a matching config exists", func() {
 			BeforeEach(func(ctx context.Context) {
 				By("Creating a matching config map")
-				cm := &corev1.ConfigMap{
+				configMap := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      typeNamespacedName.Name,
 						Namespace: typeNamespacedName.Namespace,
 					},
 					Data: map[string]string{},
 				}
-				Expect(k8sClient.Create(ctx, cm)).To(Succeed())
+				Expect(k8sClient.Create(ctx, configMap)).To(Succeed())
 			})
 
 			AfterEach(func(ctx context.Context) {
@@ -765,7 +512,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("Should be available", func() {
+			It("should mark the wireguard config as available", func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -795,7 +542,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				wireguardconfig.Spec.Username.Value = ""
 			})
 
-			It("Should error", func() {
+			It("should mark the wireguard config as errored", func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -825,7 +572,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				wireguardconfig.Spec.Password.Value = ""
 			})
 
-			It("Should error", func() {
+			It("should mark the wireguard config as errored", func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -851,3 +598,18 @@ var _ = Describe("WireguardConfig Controller", func() {
 		})
 	})
 })
+
+func findJob(name string) batchv1.Job {
+	GinkgoHelper()
+
+	jobList := &batchv1.JobList{}
+	Eventually(func() error {
+		return k8sClient.List(ctx, jobList, client.MatchingLabels{
+			"app.kubernetes.io/name":   "thecluster-operator",
+			"pia.thecluster.io/config": name,
+		})
+	}).Should(Succeed())
+
+	Expect(jobList.Items).To(HaveLen(1))
+	return jobList.Items[0]
+}
