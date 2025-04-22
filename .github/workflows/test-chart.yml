@@ -22,10 +22,11 @@ jobs:
       - run: kind version
       - run: make kind-cluster
 
-      - run: |
+      - name: Load image into kind
+        run: |
           go mod tidy
           make docker-build IMG=thecluster-operator:v0.1.0
-          kind load docker-image thecluster-operator:v0.1.0
+          kind load docker-image thecluster-operator:v0.1.0 --name thecluster-operator
 
       - run: go install helm.sh/helm/v3/cmd/helm
       - run: helm version
