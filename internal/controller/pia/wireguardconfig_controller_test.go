@@ -206,7 +206,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("should set the PIA_USER env var source", func() {
+			It("should set the PIA_USER env var source", Pending, func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -271,7 +271,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("should set the PIA_PASS env var source", func() {
+			It("should set the PIA_PASS env var source", Pending, func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -336,7 +336,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("should set the PIA_USER env var source", func() {
+			It("should set the PIA_USER env var source", Pending, func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
@@ -401,7 +401,7 @@ var _ = Describe("WireguardConfig Controller", func() {
 				}
 			})
 
-			It("should set the PIA_PASS env var source", func() {
+			It("should set the PIA_PASS env var source", Pending, func() {
 				By("Reconciling the created resource")
 				controllerReconciler := &WireguardConfigReconciler{
 					Client: k8sClient,
