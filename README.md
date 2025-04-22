@@ -75,6 +75,8 @@ make undeploy
 
 Following are the steps to build the installer and distribute this project to users.
 
+### By providing a bundle with all YAML files
+
 1. Build the installer for the image built and published in the registry:
 
 ```sh

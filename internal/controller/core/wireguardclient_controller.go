@@ -339,6 +339,7 @@ func (r *WireguardClientReconciler) FinalizerOperations(ctx context.Context, wg 
 func (r *WireguardClientReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1alpha1.WireguardClient{}).
+		Named("core-wireguardclient").
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
