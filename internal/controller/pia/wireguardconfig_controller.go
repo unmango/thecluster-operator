@@ -122,6 +122,10 @@ func (r *WireguardConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func (r *WireguardConfigReconciler) createGenJob(ctx context.Context, c *piav1alpha1.WireguardConfig) (ctrl.Result, error) {
+	return ctrl.Result{}, nil
+}
+
 func (r *WireguardConfigReconciler) createGenPod(ctx context.Context, c *piav1alpha1.WireguardConfig) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
