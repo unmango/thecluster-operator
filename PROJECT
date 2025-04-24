@@ -23,7 +23,6 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  controller: true
   domain: thecluster.io
   group: pia
   kind: WireguardConfig
