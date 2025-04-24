@@ -9,5 +9,7 @@ resources:
 patches:
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
-configurations:
-- kustomizeconfig.yaml
+# [WEBHOOK] To enable webhook, uncomment the following section
+# the following config is for teaching kustomize how to do kustomization for CRDs.
+#configurations:
+#- kustomizeconfig.yaml
