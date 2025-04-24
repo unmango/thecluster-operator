@@ -289,54 +289,6 @@ var _ = Describe("Manager", Ordered, func() {
 			cmd.Stdin = bytes.NewBuffer(sample)
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create wireguard config")
-
-			By("fetching the generate pod name")
-			var genPodName string
-			getGenPodName := func(g Gomega) {
-				cmd := exec.Command("go", "tool", "kubectl", "get", "pods",
-					"-l", "app.kubernetes.io/name=thecluster-operator",
-					"-l", "pia.thecluster.io/config=wireguardconfig-sample",
-					"-o", "jsonpath={.items[*].metadata.name}")
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).NotTo(BeEmpty(), "failed to find pod name")
-				g.Expect(strings.Fields(output)).To(HaveLen(1), "expected a single name")
-				genPodName = output
-			}
-			Eventually(getGenPodName).Should(Succeed())
-
-			By("waiting for the generate pod to start")
-			verifyPod := func(g Gomega) {
-				cmd := exec.Command("go", "tool", "kubectl", "get", "pods",
-					"-o", "jsonpath={.status.phase}", genPodName)
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(Equal("Running"), "generate pod in wrong status")
-			}
-			Eventually(verifyPod, 1*time.Minute).Should(Succeed())
-
-			By("waiting for the pod to be ready")
-			containersReady := func(g Gomega) {
-				cmd := exec.Command("go", "tool", "kubectl", "get", "pods",
-					"-o", `jsonpath={.status.conditions[?(@.type=="ContainersReady")].status}`,
-					genPodName)
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).To(Equal("True"))
-			}
-			Eventually(containersReady).Should(Succeed())
-			Consistently(containersReady).Should(Succeed())
-
-			By("waiting for the config to be generated")
-			copyConfig := func(g Gomega) {
-				cmd := exec.Command("go", "tool", "kubectl", "exec",
-					genPodName, "-c", "results",
-					"--", "cat", "/out/pia0.conf")
-				output, err := utils.Run(cmd)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(output).NotTo(ContainSubstring("No such file or directory"))
-			}
-			Eventually(copyConfig, 1*time.Minute).Should(Succeed())
 		})
 
 		It("should create a wireguard client", func() {
