@@ -123,11 +123,6 @@ var _ = Describe("Pod Webhook", func() {
 				It("should add an init container", func() {
 					Expect(defaulter.Default(ctx, obj)).To(Succeed())
 
-					container := &corev1.Container{}
-					Expect(obj.Spec.InitContainers).To(ContainElement(
-						HaveField("Name", "generate-wireguard-config"), container,
-					))
-
 					Expect(obj.Spec.Volumes).To(ConsistOf(corev1.Volume{
 						Name: "config",
 						VolumeSource: corev1.VolumeSource{
@@ -135,7 +130,11 @@ var _ = Describe("Pod Webhook", func() {
 						},
 					}))
 
-					Expect(container.Name).To(Equal("generate-config"))
+					container := &corev1.Container{}
+					Expect(obj.Spec.InitContainers).To(ContainElement(
+						HaveField("Name", "generate-wireguard-config"), container,
+					))
+
 					Expect(container.Image).To(HavePrefix("unstoppablemango/pia-manual-connections:"))
 					Expect(container.Env).To(ConsistOf(
 						corev1.EnvVar{Name: "PIA_USER", Value: username},

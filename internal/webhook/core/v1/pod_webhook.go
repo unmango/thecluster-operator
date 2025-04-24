@@ -72,10 +72,19 @@ func (d *PodCustomDefaulter) Default(ctx context.Context, obj runtime.Object) er
 		return fmt.Errorf("unable to look up wireguard config: %w", err)
 	}
 
-	container := corev1.Container{
-		Name: "generate-wireguard-config",
-	}
-	pod.Spec.InitContainers = append(pod.Spec.InitContainers, container)
+	pod.Spec.InitContainers = append(pod.Spec.InitContainers,
+		corev1.Container{
+			Name:  "generate-wireguard-config",
+			Image: "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0",
+			Env:   []corev1.EnvVar{},
+		},
+	)
+	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+		Name: "config",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	})
 
 	return nil
 }
