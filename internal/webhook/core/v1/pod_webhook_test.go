@@ -49,22 +49,9 @@ var _ = Describe("Pod Webhook", func() {
 		Expect(obj).NotTo(BeNil(), "Expected obj to be initialized")
 	})
 
-	AfterEach(func() {
-		// TODO (user): Add any teardown logic common to all tests
-	})
+	AfterEach(func() {})
 
 	Context("When creating Pod under Defaulting Webhook", func() {
-		// TODO (user): Add logic for defaulting webhooks
-		// Example:
-		// It("Should apply defaults when a required field is empty", func() {
-		//     By("simulating a scenario where defaults should be applied")
-		//     obj.SomeFieldWithDefault = ""
-		//     By("calling the Default method to apply defaults")
-		//     defaulter.Default(ctx, obj)
-		//     By("checking that the default values are set")
-		//     Expect(obj.SomeFieldWithDefault).To(Equal("default_value"))
-		// })
-
 		It("should not add init containers to un-annotated pods", func() {
 			Expect(defaulter.Default(ctx, obj)).To(Succeed())
 			Expect(obj.Spec.InitContainers).To(BeEmpty())
