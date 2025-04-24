@@ -40,7 +40,6 @@ import (
 	corev1alpha1 "github.com/unmango/thecluster-operator/api/core/v1alpha1"
 	piav1alpha1 "github.com/unmango/thecluster-operator/api/pia/v1alpha1"
 	corecontroller "github.com/unmango/thecluster-operator/internal/controller/core"
-	piacontroller "github.com/unmango/thecluster-operator/internal/controller/pia"
 	webhookcorev1 "github.com/unmango/thecluster-operator/internal/webhook/core/v1"
 	// +kubebuilder:scaffold:imports
 )
@@ -211,13 +210,6 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WireguardClient")
-		os.Exit(1)
-	}
-	if err = (&piacontroller.WireguardConfigReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "WireguardConfig")
 		os.Exit(1)
 	}
 	// nolint:goconst
