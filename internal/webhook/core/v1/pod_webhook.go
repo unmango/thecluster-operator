@@ -30,8 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// nolint:unused
-// log is for logging in this package.
 var podlog = logf.Log.WithName("pod-resource")
 
 // SetupPodWebhookWithManager registers the webhook for Pod in the manager.
@@ -76,7 +74,21 @@ func (d *PodCustomDefaulter) Default(ctx context.Context, obj runtime.Object) er
 		corev1.Container{
 			Name:  "generate-wireguard-config",
 			Image: "unstoppablemango/pia-manual-connections:v0.2.0-pia2023-02-06r0",
-			Env:   []corev1.EnvVar{},
+			Env: []corev1.EnvVar{
+				{Name: "PIA_USER", Value: config.Spec.Username.Value},
+				{Name: "PIA_PASS", Value: config.Spec.Password.Value},
+				{Name: "PIA_PF", Value: "false"},
+				{Name: "PIA_CONNECT", Value: "false"},
+				{Name: "PIA_CONF_PATH", Value: "/out/pia0.conf"},
+				{Name: "VPN_PROTOCOL", Value: "wireguard"},
+				{Name: "DISABLE_IPV6", Value: "no"},
+				{Name: "DIP_TOKEN", Value: "no"},
+				{Name: "AUTOCONNECT", Value: "true"},
+			},
+			VolumeMounts: []corev1.VolumeMount{{
+				Name:      "config",
+				MountPath: "/config",
+			}},
 		},
 	)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
