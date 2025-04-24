@@ -23,6 +23,7 @@ import (
 	piav1alpha1 "github.com/unmango/thecluster-operator/api/pia/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var _ = Describe("Pod Webhook", func() {
@@ -33,9 +34,16 @@ var _ = Describe("Pod Webhook", func() {
 	)
 
 	BeforeEach(func() {
-		obj = &corev1.Pod{}
+		obj = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-pod",
+				Namespace: "default",
+			},
+		}
 		oldObj = &corev1.Pod{}
-		defaulter = PodCustomDefaulter{}
+		defaulter = PodCustomDefaulter{
+			Client: k8sClient,
+		}
 		Expect(defaulter).NotTo(BeNil(), "Expected defaulter to be initialized")
 		Expect(oldObj).NotTo(BeNil(), "Expected oldObj to be initialized")
 		Expect(obj).NotTo(BeNil(), "Expected obj to be initialized")
@@ -65,14 +73,16 @@ var _ = Describe("Pod Webhook", func() {
 		When("the pod is annotated with a wireguard config", func() {
 			BeforeEach(func() {
 				obj.Annotations = map[string]string{
-					"pia.thecluster.io/config": "blah",
+					"pia.thecluster.io/config": "test-config",
 				}
 			})
 
 			It("should error reporting the config does not exist", func() {
 				err := defaulter.Default(ctx, obj)
 
-				Expect(err).To(MatchError("config 'blah' does not exist"))
+				Expect(err).To(MatchError(
+					ContainSubstring(`wireguardconfigs.pia.thecluster.io "test-config" not found`),
+				))
 			})
 
 			Context("and the wireguard config exists", func() {
@@ -99,16 +109,27 @@ var _ = Describe("Pod Webhook", func() {
 					Expect(k8sClient.Create(ctx, config)).To(Succeed())
 				})
 
+				AfterEach(func() {
+					var config *piav1alpha1.WireguardConfig
+					configName := types.NamespacedName{
+						Namespace: "default",
+						Name:      "test-config",
+					}
+					if err := k8sClient.Get(ctx, configName, config); err == nil {
+						Expect(k8sClient.Delete(ctx, config)).To(Succeed())
+					}
+				})
+
 				It("should add an init container", func() {
 					Expect(defaulter.Default(ctx, obj)).To(Succeed())
 
-					var container *corev1.Container
+					container := &corev1.Container{}
 					Expect(obj.Spec.InitContainers).To(ContainElement(
 						HaveField("Name", "generate-wireguard-config"), container,
 					))
 
 					Expect(obj.Spec.Volumes).To(ConsistOf(corev1.Volume{
-						Name: "results",
+						Name: "config",
 						VolumeSource: corev1.VolumeSource{
 							EmptyDir: &corev1.EmptyDirVolumeSource{},
 						},
@@ -128,8 +149,8 @@ var _ = Describe("Pod Webhook", func() {
 						corev1.EnvVar{Name: "AUTOCONNECT", Value: "true"},
 					))
 					Expect(container.VolumeMounts).To(ConsistOf(corev1.VolumeMount{
-						Name:      "results",
-						MountPath: "/out",
+						Name:      "config",
+						MountPath: "/config",
 					}))
 				})
 			})
