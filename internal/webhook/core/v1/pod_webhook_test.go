@@ -135,8 +135,8 @@ var _ = Describe("Pod Webhook", func() {
 						corev1.EnvVar{Name: "AUTOCONNECT", Value: "true"},
 					))
 					Expect(container.VolumeMounts).To(ConsistOf(corev1.VolumeMount{
-						Name:      "config",
-						MountPath: "/config",
+						Name:      "wireguard-config",
+						MountPath: "/out",
 					}))
 				})
 			})

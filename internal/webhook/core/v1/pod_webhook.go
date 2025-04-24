@@ -86,8 +86,8 @@ func (d *PodCustomDefaulter) Default(ctx context.Context, obj runtime.Object) er
 				{Name: "AUTOCONNECT", Value: "true"},
 			},
 			VolumeMounts: []corev1.VolumeMount{{
-				Name:      "config",
-				MountPath: "/config",
+				Name:      "wireguard-config",
+				MountPath: "/out",
 			}},
 		},
 	)
