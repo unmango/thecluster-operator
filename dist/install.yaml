@@ -834,7 +834,7 @@ spec:
         - --webhook-cert-path=/tmp/k8s-webhook-server/serving-certs
         command:
         - /manager
-        image: controller:latest
+        image: ghcr.io/unmango/thecluster-operator:v0.0.1
         livenessProbe:
           httpGet:
             path: /healthz
