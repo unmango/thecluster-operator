@@ -135,7 +135,7 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
-KUBECTL ?= go tool kubectl
+KUBECTL ?= kubectl
 KUSTOMIZE ?= go tool kustomize
 CONTROLLER_GEN ?= go tool controller-gen
 ENVTEST ?= go tool setup-envtest
