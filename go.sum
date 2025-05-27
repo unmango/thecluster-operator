@@ -1055,6 +1055,7 @@ sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 h1:/Rv+M11QRah1itp8VhT6HoVx1
 sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3/go.mod h1:18nIHnGi6636UCz6m8i4DhaJ65T6EruyzmoQqI2BVDo=
 sigs.k8s.io/kind v0.27.0 h1:PQ3f0iAWNIj66LYkZ1ivhEg/+Zb6UPMbO+qVei/INZA=
 sigs.k8s.io/kind v0.27.0/go.mod h1:RZVFmy6qcwlSWwp6xeIUv7kXCPF3i8MXsEXxW/J+gJY=
+sigs.k8s.io/kind v0.29.0/go.mod h1:ldWQisw2NYyM6k64o/tkZng/1qQW7OlzcN5a8geJX3o=
 sigs.k8s.io/kubebuilder/v4 v4.5.2 h1:57lmVU1zwjOZAF28hBhZyaxE6qXreHYekI4yt/Q5rEU=
 sigs.k8s.io/kubebuilder/v4 v4.5.2/go.mod h1:oJrPYf8hkfLCh2vb40vD/Gm22CJsFHlGQz1mw2ZiQaY=
 sigs.k8s.io/kubebuilder/v4 v4.6.0/go.mod h1:zlXrnLiJPDPpK4hKCUrlgzzLOusfA8Sd8tpYGIrvD00=
