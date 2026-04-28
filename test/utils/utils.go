@@ -32,7 +32,7 @@ const (
 	prometheusOperatorURL     = "https://github.com/prometheus-operator/prometheus-operator/" +
 		"releases/download/%s/bundle.yaml"
 
-	certmanagerVersion = "v1.16.3"
+	certmanagerVersion = "v1.17.2"
 	certmanagerURLTmpl = "https://github.com/cert-manager/cert-manager/releases/download/%s/cert-manager.yaml"
 )
 
@@ -106,6 +106,13 @@ func IsPrometheusCRDsInstalled() bool {
 
 // UninstallCertManager uninstalls the cert manager
 func UninstallCertManager() {
+	cmd := exec.Command("kubectl", "get", "Issuers,ClusterIssuers,Certificates,CertificateRequests,Orders,Challenges", "--all-namespaces")
+	if output, err := Run(cmd); err != nil {
+		warnError(err)
+	} else {
+		fmt.Fprint(GinkgoWriter, output)
+	}
+
 	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
 	cmd := exec.Command("kubectl", "delete", "-f", url)
 	if _, err := Run(cmd); err != nil {

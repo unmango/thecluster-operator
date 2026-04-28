@@ -1,0 +1,5 @@
+- op: add
+  path: /webhooks/0/objectSelector
+  value:
+    matchLabels:
+      pia.thecluster.io/wireguard: 'true'
