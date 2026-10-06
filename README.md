@@ -1,5 +1,7 @@
 # THECLUSTER Operator
 
+[![Hercules CI](https://hercules-ci.com/api/v1/site/github/account/unmango/project/thecluster-operator/badge)](https://hercules-ci.com/github/unmango/thecluster-operator)
+
 An operator for useful stuff in your CLUSTER. WIP. Currently does Wireguard stuff.
 
 ## Description
