@@ -29,3 +29,13 @@ resources:
 - core_wireguardclient_editor_role.yaml
 - core_wireguardclient_viewer_role.yaml
 
+# For each CRD, "Admin", "Editor" and "Viewer" roles are scaffolded by
+# default, aiding admins in cluster management. Those roles are
+# not used by the thecluster-operator itself. You can comment the following lines
+# if you do not want those helpers be installed with your Project.
+- registry_proxycache_admin_role.yaml
+- registry_proxycache_editor_role.yaml
+- registry_proxycache_viewer_role.yaml
+- registry_registry_admin_role.yaml
+- registry_registry_editor_role.yaml
+- registry_registry_viewer_role.yaml
