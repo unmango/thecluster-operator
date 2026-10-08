@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Opens or updates the release PR, and tags vX.Y.Z when it merges. The tag
+  # is pushed by thecluster[bot] rather than GITHUB_TOKEN, so it triggers the
+  # Main workflow, which publishes the semver image tags. A PR opened with
+  # GITHUB_TOKEN would also arrive without its CI checks.
+  release-please:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: unmango/actions/.github/workflows/release-please.yml@e8bbcbd12a2c521c5cb36957c00a7a8f4fe2e766 # v2.0.0
+    with:
+      config-file: release-please-config.json
+      manifest-file: .release-please-manifest.json
+      app-client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+    secrets:
+      app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}

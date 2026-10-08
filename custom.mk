@@ -1,6 +1,5 @@
 DEVCTL      := go tool devctl
 KUBEBUILDER := go tool kubebuilder
-KIND        := go tool kind
 
 tidy: go.sum
 

@@ -39,19 +39,24 @@ generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
-fmt: ## Run go fmt against code.
-	go fmt ./...
+fmt: ## Format everything with treefmt (gofmt, nixfmt, actionlint, ...).
+	nix fmt
+
+.PHONY: check
+check: ## Run nix flake check, which includes the treefmt check.
+	nix flake check
 
 .PHONY: vet
 vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+test: manifests generate vet ## Run tests. KUBEBUILDER_ASSETS comes from the nix devshell.
+	@test -n "$$KUBEBUILDER_ASSETS" || { echo "KUBEBUILDER_ASSETS is unset; run inside the devshell (nix develop)" >&2; exit 1; }
+	go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 .PHONY: test-e2e
-test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
+test-e2e: manifests generate vet ## Run the e2e tests. Expected an isolated environment using Kind.
 	@$(KIND) get clusters | grep -q 'thecluster-operator' || { \
 		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
 		exit 1; \
@@ -73,11 +78,11 @@ lint-config: ## Verify golangci-lint linter configuration
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: manifests generate vet ## Build manager binary.
 	go build -o bin/manager cmd/main.go
 
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
+run: manifests generate vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
 .PHONY: docker-build
@@ -135,9 +140,10 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
+# kubectl, kind and kustomize come from the devshell (unmango/kubepkgs); the
+# Go-only tools are pinned in go.mod's tool block.
 KUBECTL ?= kubectl
-KUSTOMIZE ?= go tool kustomize
+KIND ?= kind
+KUSTOMIZE ?= kustomize
 CONTROLLER_GEN ?= go tool controller-gen
-ENVTEST ?= go tool setup-envtest
 GOLANGCI_LINT = go tool golangci-lint
-ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')

@@ -4,11 +4,23 @@
 		"config:recommended",
 		"github>UnstoppableMango/renovate-config"
 	],
+	"nix": {
+		"enabled": true
+	},
+	"semanticCommits": "enabled",
 	"schedule": [
 		"before 4am on the first day of the month"
 	],
 	"major": {
 		"dependencyDashboardApproval": true
 	},
-	"packageRules": []
+	"packageRules": [
+		{
+			"description": "k8s.io modules release together; a split bump is how apimachinery once ended up on an alpha ahead of api and client-go.",
+			"matchDatasources": ["go"],
+			"matchPackageNames": ["k8s.io/api", "k8s.io/apimachinery", "k8s.io/client-go", "k8s.io/apiextensions-apiserver"],
+			"groupName": "kubernetes go modules",
+			"allowedVersions": "!/-(alpha|beta|rc)/"
+		}
+	]
 }

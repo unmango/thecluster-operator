@@ -171,7 +171,7 @@ func LoadImageToKindClusterWithName(name string) error {
 	if v, ok := os.LookupEnv("KIND_CLUSTER"); ok {
 		cluster = v
 	}
-	cmd := exec.Command("go", "tool", "kind", "load", "docker-image", name, "--name", cluster)
+	cmd := exec.Command("kind", "load", "docker-image", name, "--name", cluster)
 	_, err := Run(cmd)
 	return err
 }

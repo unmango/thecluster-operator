@@ -1,63 +1,86 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
+# Nothing here writes to the repository; checks and tests only read it.
+permissions:
+  contents: read
+
 jobs:
-  build:
-    name: Build and Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-
-      - run: make test
-
-  test-e2e:
-    name: E2E Tests
-    runs-on: ubuntu-latest
+  nix:
+    runs-on: thecluster
+    # The runner image ships nix, so nothing installs it here. Its
+    # /etc/nix/nix.conf carries the settings every job wants, and nix merges
+    # NIX_CONFIG on top of that file. Only extra-* settings, because a plain
+    # assignment replaces the image's value rather than adding to it.
     env:
+      NIX_CONFIG: |
+        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
+        extra-substituters = https://ncps.thecluster.lan
+        extra-experimental-features = nix-command flakes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - run: nix flake check
+
+  # The devshell supplies go, kind, kustomize, kubectl and the envtest
+  # binaries from unmango/kubepkgs, so every job below runs inside it.
+  test:
+    runs-on: thecluster
+    env:
+      NIX_CONFIG: |
+        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
+        extra-substituters = https://ncps.thecluster.lan
+        extra-experimental-features = nix-command flakes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - run: nix develop -c make test
+
+      # manifests and generate rewrite the CRDs, RBAC and deepcopy code from the
+      # Go types; a diff means the PR changed a type without regenerating.
+      - name: Check generated files are up to date
+        run: git diff --exit-code
+
+  lint:
+    runs-on: thecluster
+    env:
+      NIX_CONFIG: |
+        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
+        extra-substituters = https://ncps.thecluster.lan
+        extra-experimental-features = nix-command flakes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - run: nix develop -c make lint
+
+  e2e:
+    runs-on: thecluster
+    env:
+      NIX_CONFIG: |
+        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
+        extra-substituters = https://ncps.thecluster.lan
+        extra-experimental-features = nix-command flakes
       PIA_USER: ${{ secrets.PIA_USER }}
       PIA_PASS: ${{ secrets.PIA_PASS }}
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
+          persist-credentials: false
 
-      - run: go install sigs.k8s.io/kind
-      - run: make kind-cluster
-      - run: make test-e2e
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-
-      - run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint
-
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          install-mode: none
+      - run: nix develop -c make kind-cluster
+      - run: nix develop -c make test-e2e
 
   docker:
-    name: Docker
-    runs-on: ubuntu-latest
+    runs-on: thecluster
     steps:
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/build-push-action@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
