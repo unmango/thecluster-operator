@@ -45,8 +45,15 @@ jobs:
 
       # manifests and generate rewrite the CRDs, RBAC and deepcopy code from the
       # Go types; a diff means the PR changed a type without regenerating.
+      # git status rather than git diff, which says nothing about a file that
+      # was generated but never added.
       - name: Check generated files are up to date
-        run: git diff --exit-code
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            git diff
+            exit 1
+          fi
 
   lint:
     runs-on: thecluster
