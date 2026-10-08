@@ -16,11 +16,9 @@ jobs:
     # Required by the repository ruleset under this name.
     name: E2E
     runs-on: thecluster
+    # No NIX_CONFIG here: the runner pod's own points nix at ncps, and a
+    # job-level one would replace it. See ci.yml.
     env:
-      NIX_CONFIG: |
-        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
-        extra-substituters = https://ncps.thecluster.lan
-        extra-experimental-features = nix-command flakes
       IMG: thecluster-operator:ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

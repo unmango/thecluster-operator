@@ -15,14 +15,10 @@ jobs:
   nix:
     runs-on: thecluster
     # The runner image ships nix, so nothing installs it here. Its
-    # /etc/nix/nix.conf carries the settings every job wants, and nix merges
-    # NIX_CONFIG on top of that file. Only extra-* settings, because a plain
-    # assignment replaces the image's value rather than adding to it.
-    env:
-      NIX_CONFIG: |
-        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
-        extra-substituters = https://ncps.thecluster.lan
-        extra-experimental-features = nix-command flakes
+    # /etc/nix/nix.conf enables flakes, and the scale set sets NIX_CONFIG on
+    # the runner pod to the in-cluster ncps substituter and its key. A job-level
+    # NIX_CONFIG would replace that variable, not add to it, and every job would
+    # build kube-apiserver and etcd from source.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -31,15 +27,11 @@ jobs:
       - run: nix flake check
 
   # The devshell supplies go, kind, kustomize, kubectl and the envtest
-  # binaries from unmango/kubepkgs, so every job below runs inside it.
+  # binaries from unmango/kubepkgs, so every job below runs inside it. Those
+  # come from ncps through the runner pod's NIX_CONFIG, as noted on nix.
   test:
     name: Build and Test
     runs-on: thecluster
-    env:
-      NIX_CONFIG: |
-        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
-        extra-substituters = https://ncps.thecluster.lan
-        extra-experimental-features = nix-command flakes
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -62,11 +54,6 @@ jobs:
   lint:
     name: Lint
     runs-on: thecluster
-    env:
-      NIX_CONFIG: |
-        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
-        extra-substituters = https://ncps.thecluster.lan
-        extra-experimental-features = nix-command flakes
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -78,10 +65,6 @@ jobs:
     name: E2E Tests
     runs-on: thecluster
     env:
-      NIX_CONFIG: |
-        extra-trusted-public-keys = ncps.thecluster.lan:D8fcKW2/D+zjKOABa3bDjEe8x+EPZpXnBDm+XwtNrhI=
-        extra-substituters = https://ncps.thecluster.lan
-        extra-experimental-features = nix-command flakes
       PIA_USER: ${{ secrets.PIA_USER }}
       PIA_PASS: ${{ secrets.PIA_PASS }}
     steps:
