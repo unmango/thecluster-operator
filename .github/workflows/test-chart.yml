@@ -13,6 +13,8 @@ env:
 
 jobs:
   install:
+    # Required by the repository ruleset under this name.
+    name: E2E
     runs-on: thecluster
     env:
       NIX_CONFIG: |
