@@ -55,13 +55,15 @@ test: manifests generate vet ## Run tests. KUBEBUILDER_ASSETS comes from the nix
 	@test -n "$$KUBEBUILDER_ASSETS" || { echo "KUBEBUILDER_ASSETS is unset; run inside the devshell (nix develop)" >&2; exit 1; }
 	go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
+# The suite builds the manager image and installs cert-manager before its
+# first spec, which on a thecluster runner outlasts go test's 10m default.
 .PHONY: test-e2e
 test-e2e: manifests generate vet ## Run the e2e tests. Expected an isolated environment using Kind.
 	@$(KIND) get clusters | grep -q 'thecluster-operator' || { \
 		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
 		exit 1; \
 	}
-	go test ./test/e2e/ -v -ginkgo.v
+	go test ./test/e2e/ -v -ginkgo.v -timeout 30m
 
 .PHONY: lint
 lint: ## Run golangci-lint linter
