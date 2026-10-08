@@ -68,6 +68,10 @@
             ];
 
             KUBEBUILDER_ASSETS = "${envtest}/bin";
+            # mkShellNoCC carries no C compiler, and with cgo on every go build
+            # (go tool controller-gen included) dies on runtime/cgo. The
+            # manager is built with CGO_ENABLED=0 in the Dockerfile anyway.
+            CGO_ENABLED = "0";
           };
 
           treefmt = {
