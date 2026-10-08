@@ -1,0 +1,13 @@
+apiVersion: registry.thecluster.io/v1alpha1
+kind: ProxyCache
+metadata:
+  labels:
+    app.kubernetes.io/name: thecluster-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: dockerhub
+spec:
+  registryRef:
+    name: harbor
+  upstream:
+    type: docker-hub
+    url: https://hub.docker.com

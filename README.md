@@ -2,7 +2,20 @@
 
 [![Hercules CI](https://hercules-ci.com/api/v1/site/github/account/unmango/project/thecluster-operator/badge)](https://hercules-ci.com/github/unmango/thecluster-operator)
 
-An operator for useful stuff in your CLUSTER. WIP. Currently does Wireguard stuff.
+An operator for useful stuff in your CLUSTER. WIP. Currently does Wireguard stuff and container registries.
+
+## Registries
+
+The `registry.thecluster.io` group describes registries by what they do rather than how a product configures it.
+Harbor is the only backend so far.
+
+- `Registry` points at a Harbor instance with an administrator's password from a Secret, and reports `Ready` plus the host clients pull from.
+- `ProxyCache` is a pull-through cache of one upstream (Docker Hub, ghcr.io, quay.io, or any distribution registry).
+  On Harbor it becomes a registry endpoint and a proxy-cache project, both named after the ProxyCache, and `status.endpoint` is the prefix to pull through.
+  Settings changed in Harbor are put back on the next resync, every ten minutes.
+  Deleting the ProxyCache deletes the project, its cached images, and the endpoint.
+
+See `config/samples/registry_v1alpha1_*.yaml`.
 
 ## Description
 

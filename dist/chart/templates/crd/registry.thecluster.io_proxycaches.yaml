@@ -10,20 +10,38 @@ metadata:
     "helm.sh/resource-policy": keep
     {{- end }}
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: wireguardconfigs.pia.thecluster.io
+  name: proxycaches.registry.thecluster.io
 spec:
-  group: pia.thecluster.io
+  group: registry.thecluster.io
   names:
-    kind: WireguardConfig
-    listKind: WireguardConfigList
-    plural: wireguardconfigs
-    singular: wireguardconfig
+    kind: ProxyCache
+    listKind: ProxyCacheList
+    plural: proxycaches
+    singular: proxycache
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.upstream.url
+      name: Upstream
+      type: string
+    - jsonPath: .status.endpoint
+      name: Endpoint
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: WireguardConfig is the Schema for the wireguardconfigs API.
+        description: |-
+          ProxyCache is a pull-through cache of an upstream registry. Its name is
+          the path prefix it is served under, so for Harbor it becomes both the
+          registry endpoint and the proxy-cache project. Those names are global to
+          the Registry, so two ProxyCaches with one name in different namespaces
+          would fight over them.
         properties:
           apiVersion:
             description: |-
@@ -43,68 +61,39 @@ spec:
           metadata:
             type: object
           spec:
-            description: WireguardConfigSpec defines the desired state of WireguardConfig.
+            description: ProxyCacheSpec defines the desired state of ProxyCache.
             properties:
-              password:
+              public:
+                default: true
+                description: |-
+                  Public lets clients pull without credentials, which is what node
+                  container runtimes need.
+                type: boolean
+              registryRef:
+                description: |-
+                  RegistryRef names the Registry, in the same namespace, that serves
+                  this cache.
                 properties:
-                  configMapKeyRef:
-                    description: Selects a key from a ConfigMap.
-                    properties:
-                      key:
-                        description: The key to select.
-                        type: string
-                      name:
-                        default: ""
-                        description: |-
-                          Name of the referent.
-                          This field is effectively required, but due to backwards compatibility is
-                          allowed to be empty. Instances of this type with an empty value here are
-                          almost certainly wrong.
-                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        type: string
-                      optional:
-                        description: Specify whether the ConfigMap or its key must
-                          be defined
-                        type: boolean
-                    required:
-                    - key
-                    type: object
-                    x-kubernetes-map-type: atomic
-                  secretKeyRef:
-                    description: SecretKeySelector selects a key of a Secret.
-                    properties:
-                      key:
-                        description: The key of the secret to select from.  Must be
-                          a valid secret key.
-                        type: string
-                      name:
-                        default: ""
-                        description: |-
-                          Name of the referent.
-                          This field is effectively required, but due to backwards compatibility is
-                          allowed to be empty. Instances of this type with an empty value here are
-                          almost certainly wrong.
-                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        type: string
-                      optional:
-                        description: Specify whether the Secret or its key must be
-                          defined
-                        type: boolean
-                    required:
-                    - key
-                    type: object
-                    x-kubernetes-map-type: atomic
-                  value:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                     type: string
                 type: object
-              username:
+                x-kubernetes-map-type: atomic
+              upstream:
+                description: Upstream is the registry being cached.
                 properties:
-                  configMapKeyRef:
-                    description: Selects a key from a ConfigMap.
+                  credentialsSecretRef:
+                    description: |-
+                      CredentialsSecretRef names a Secret in the ProxyCache's namespace with
+                      username and password keys, for upstreams that rate limit anonymous
+                      pulls. Omitted, the cache pulls anonymously.
                     properties:
-                      key:
-                        description: The key to select.
-                        type: string
                       name:
                         default: ""
                         description: |-
@@ -114,47 +103,34 @@ spec:
                           almost certainly wrong.
                           More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                         type: string
-                      optional:
-                        description: Specify whether the ConfigMap or its key must
-                          be defined
-                        type: boolean
-                    required:
-                    - key
                     type: object
                     x-kubernetes-map-type: atomic
-                  secretKeyRef:
-                    description: SecretKeySelector selects a key of a Secret.
-                    properties:
-                      key:
-                        description: The key of the secret to select from.  Must be
-                          a valid secret key.
-                        type: string
-                      name:
-                        default: ""
-                        description: |-
-                          Name of the referent.
-                          This field is effectively required, but due to backwards compatibility is
-                          allowed to be empty. Instances of this type with an empty value here are
-                          almost certainly wrong.
-                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        type: string
-                      optional:
-                        description: Specify whether the Secret or its key must be
-                          defined
-                        type: boolean
-                    required:
-                    - key
-                    type: object
-                    x-kubernetes-map-type: atomic
-                  value:
+                  type:
+                    description: |-
+                      Type of the upstream registry. Harbor cannot change it in place, so
+                      changing it means deleting and recreating the ProxyCache.
+                    enum:
+                    - docker-hub
+                    - github-ghcr
+                    - quay
+                    - docker-registry
                     type: string
+                  url:
+                    description: |-
+                      URL of the upstream registry, for example https://hub.docker.com for
+                      Docker Hub or https://registry.k8s.io.
+                    pattern: ^https?://
+                    type: string
+                required:
+                - type
+                - url
                 type: object
             required:
-            - password
-            - username
+            - registryRef
+            - upstream
             type: object
           status:
-            description: WireguardConfigStatus defines the observed state of WireguardConfig.
+            description: ProxyCacheStatus defines the observed state of ProxyCache.
             properties:
               conditions:
                 items:
@@ -212,6 +188,14 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              endpoint:
+                description: |-
+                  Endpoint is the prefix clients pull through, for example
+                  harbor.example.com/dockerhub for docker.io images.
+                type: string
             type: object
         type: object
     served: true

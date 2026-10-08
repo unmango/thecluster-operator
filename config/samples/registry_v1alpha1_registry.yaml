@@ -1,0 +1,13 @@
+apiVersion: registry.thecluster.io/v1alpha1
+kind: Registry
+metadata:
+  labels:
+    app.kubernetes.io/name: thecluster-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: harbor
+spec:
+  harbor:
+    url: http://harbor-core.harbor-system.svc
+    passwordSecretRef:
+      name: harbor
+      key: HARBOR_ADMIN_PASSWORD
