@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // HarborSpec connects a Registry to a Harbor instance.
@@ -85,5 +86,8 @@ type RegistryList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Registry{}, &RegistryList{})
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(SchemeGroupVersion, &Registry{}, &RegistryList{})
+		return nil
+	})
 }
