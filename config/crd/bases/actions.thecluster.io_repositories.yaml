@@ -1,0 +1,224 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: repositories.actions.thecluster.io
+spec:
+  group: actions.thecluster.io
+  names:
+    kind: Repository
+    listKind: RepositoryList
+    plural: repositories
+    singular: repository
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.url
+      name: URL
+      type: string
+    - jsonPath: .status.namespace
+      name: Namespace
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          Repository is a GitHub Actions runner scale set for one repository. It
+          renders an actions-runner-controller AutoscalingRunnerSet in a namespace of
+          its own, along with the RBAC and credentials the scale set needs there.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Repository
+            properties:
+              githubConfigSecret:
+                description: |-
+                  GitHubConfigSecret is the Secret holding the GitHub App or token the
+                  scale set authenticates with. The operator copies it into Namespace,
+                  since the scale set can only read a Secret in its own namespace.
+                  Defaults to the operator's --github-config-secret.
+                properties:
+                  name:
+                    description: Name of the Secret.
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: Namespace of the Secret.
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              listenerTemplate:
+                description: ListenerTemplate is passed to the AutoscalingRunnerSet
+                  as is.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              maxRunners:
+                description: |-
+                  MaxRunners caps how many runners run at once. Defaults to the
+                  operator's --max-runners.
+                format: int32
+                minimum: 0
+                type: integer
+              minRunners:
+                description: MinRunners is how many idle runners to keep. Defaults
+                  to none.
+                format: int32
+                minimum: 0
+                type: integer
+              namespace:
+                description: |-
+                  Namespace the scale set and its runners run in. The operator creates it
+                  and deletes it with the Repository. Defaults to the operator's
+                  namespace prefix followed by the Repository's name.
+                maxLength: 63
+                type: string
+                x-kubernetes-validations:
+                - message: namespace is immutable
+                  rule: self == oldSelf
+              nixStorageSize:
+                anyOf:
+                - type: integer
+                - type: string
+                description: |-
+                  NixStorageSize sizes the volume mounted at /nix in the default runner
+                  template. Defaults to the operator's --nix-storage-size. Ignored when
+                  Template is set.
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              runnerGroup:
+                description: RunnerGroup the scale set joins. Omitted, it joins the
+                  default group.
+                type: string
+              runnerScaleSetName:
+                description: |-
+                  RunnerScaleSetName is the name the scale set registers under, the label
+                  a workflow's runs-on selects. Defaults to the operator's
+                  --runner-scale-set-name.
+                maxLength: 45
+                type: string
+              template:
+                description: Template replaces the default runner pod template outright.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              url:
+                description: |-
+                  URL of the repository the runners register to, for example
+                  https://github.com/UnstoppableMango/dotfiles.
+                pattern: ^https://[^/]+/[^/]+/[^/]+/?$
+                type: string
+            required:
+            - url
+            type: object
+            x-kubernetes-validations:
+            - message: minRunners must not exceed maxRunners
+              rule: '!has(self.minRunners) || !has(self.maxRunners) || self.minRunners
+                <= self.maxRunners'
+          status:
+            description: status defines the observed state of Repository
+            properties:
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              namespace:
+                description: Namespace the scale set runs in.
+                type: string
+              phase:
+                description: |-
+                  Phase of the AutoscalingRunnerSet: Pending until its listener starts,
+                  Running once it does, and Outdated when the controller wants it
+                  recreated.
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

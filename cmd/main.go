@@ -37,9 +37,12 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	actionsv1alpha1 "github.com/unmango/thecluster-operator/api/actions/v1alpha1"
 	corev1alpha1 "github.com/unmango/thecluster-operator/api/core/v1alpha1"
 	piav1alpha1 "github.com/unmango/thecluster-operator/api/pia/v1alpha1"
 	registryv1alpha1 "github.com/unmango/thecluster-operator/api/registry/v1alpha1"
+	"github.com/unmango/thecluster-operator/internal/arc"
+	actionscontroller "github.com/unmango/thecluster-operator/internal/controller/actions"
 	corecontroller "github.com/unmango/thecluster-operator/internal/controller/core"
 	piacontroller "github.com/unmango/thecluster-operator/internal/controller/pia"
 	registrycontroller "github.com/unmango/thecluster-operator/internal/controller/registry"
@@ -57,6 +60,8 @@ func init() {
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(piav1alpha1.AddToScheme(scheme))
 	utilruntime.Must(registryv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(actionsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(arc.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -70,6 +75,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var runners runnerFlags
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -87,6 +93,7 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	runners.bind(flag.CommandLine)
 	opts := zap.Options{
 		Development: true,
 	}
@@ -234,6 +241,24 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ProxyCache")
+		os.Exit(1)
+	}
+	runnerDefaults, err := runners.defaults()
+	if err != nil {
+		setupLog.Error(err, "Invalid runner flags")
+		os.Exit(1)
+	}
+	if err := runnerDefaults.Validate(); err != nil {
+		// Repositories report this on their Ready condition. The operator still
+		// starts, since a cluster may run it for its other APIs alone.
+		setupLog.Info("Repositories will not reconcile until the runner flags are set", "reason", err.Error())
+	}
+	if err := (&actionscontroller.RepositoryReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Defaults: runnerDefaults,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Repository")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
