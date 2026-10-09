@@ -29,4 +29,22 @@ resources:
   kind: WireguardConfig
   path: github.com/unmango/thecluster-operator/api/pia/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: thecluster.io
+  group: registry
+  kind: Registry
+  path: github.com/unmango/thecluster-operator/api/registry/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: thecluster.io
+  group: registry
+  kind: ProxyCache
+  path: github.com/unmango/thecluster-operator/api/registry/v1alpha1
+  version: v1alpha1
 version: "3"

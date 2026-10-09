@@ -82,3 +82,32 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - registry.thecluster.io
+  resources:
+  - proxycaches
+  - registries
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - registry.thecluster.io
+  resources:
+  - proxycaches/finalizers
+  - registries/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - registry.thecluster.io
+  resources:
+  - proxycaches/status
+  - registries/status
+  verbs:
+  - get
+  - patch
+  - update

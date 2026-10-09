@@ -1,4 +1,5 @@
 {{- if .Values.rbac.enable }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -80,6 +81,35 @@ rules:
   - pia.thecluster.io
   resources:
   - wireguardconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - registry.thecluster.io
+  resources:
+  - proxycaches
+  - registries
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - registry.thecluster.io
+  resources:
+  - proxycaches/finalizers
+  - registries/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - registry.thecluster.io
+  resources:
+  - proxycaches/status
+  - registries/status
   verbs:
   - get
   - patch
