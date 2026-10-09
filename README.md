@@ -8,12 +8,24 @@ An operator for useful stuff in your CLUSTER. WIP.
 
 | Group                    | Kind              | What it does                                      |
 | ------------------------ | ----------------- | ------------------------------------------------- |
+| `actions.thecluster.io`  | `Repository`      | A GitHub Actions runner scale set for one repo    |
 | `core.thecluster.io`     | `WireguardClient` | Runs a linuxserver/wireguard client               |
 | `pia.thecluster.io`      | `WireguardConfig` | Generates a WireGuard config from PIA credentials |
 | `registry.thecluster.io` | `Registry`        | Connects to a Harbor instance                     |
 | `registry.thecluster.io` | `ProxyCache`      | A pull-through cache of one upstream registry     |
 
 Samples live in `config/samples/`.
+
+### Runners
+
+The `actions.thecluster.io` group is a thin layer over [actions-runner-controller](https://github.com/actions/actions-runner-controller)'s scale sets, which must already be installed.
+
+- `Repository` is cluster scoped and needs only `spec.url`.
+  It renders what the `gha-runner-scale-set` chart would: a namespace (`arc-<name>` by default), a copy of the GitHub credentials Secret, the runner ServiceAccount, the controller's Role and RoleBinding, and the `AutoscalingRunnerSet`.
+  Every other field defaults from the operator's flags: a dind runner with a `/nix` volume, `--max-runners`, `--runner-scale-set-name`, and `--github-config-secret`.
+  `spec.template` replaces the default runner pod outright.
+  The manager needs `--arc-version`, `--arc-service-account`, `--runner-image`, and `--dind-image`; without them every Repository reports `Misconfigured`.
+  Deleting a Repository deletes the scale set, waits for the controller to clean it up, then deletes the namespace.
 
 ### Registries
 
