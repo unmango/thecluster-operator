@@ -6,6 +6,7 @@ resources:
 - bases/pia.thecluster.io_wireguardconfigs.yaml
 - bases/registry.thecluster.io_registries.yaml
 - bases/registry.thecluster.io_proxycaches.yaml
+- bases/actions.thecluster.io_repositories.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
