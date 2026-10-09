@@ -1,0 +1,38 @@
+# A stand-in for actions-runner-controller's AutoscalingRunnerSet CRD, enough
+# for envtest to store what the Repository controller applies. The real CRD
+# validates the spec; this one keeps every field and only adds the status
+# subresource the controller writes.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: autoscalingrunnersets.actions.github.com
+spec:
+  group: actions.github.com
+  names:
+    kind: AutoscalingRunnerSet
+    listKind: AutoscalingRunnerSetList
+    plural: autoscalingrunnersets
+    singular: autoscalingrunnerset
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
