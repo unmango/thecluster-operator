@@ -17,6 +17,8 @@ limitations under the License.
 package actions
 
 import (
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -229,6 +231,42 @@ var _ = Describe("Repository Controller", func() {
 		})
 	})
 
+	It("rejects a namespace that is not a DNS label", func() {
+		bad := repo.DeepCopy()
+		bad.Name = name + "-bad"
+		bad.Spec.Namespace = "Invalid_Name"
+		Expect(k8sClient.Create(ctx, bad)).NotTo(Succeed())
+	})
+
+	It("replaces the scale set when its name changes", func() {
+		_, err := doReconcile()
+		Expect(err).NotTo(HaveOccurred())
+
+		got := &actionsv1alpha1.Repository{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, got)).To(Succeed())
+		got.Spec.RunnerScaleSetName = "renamed"
+		Expect(k8sClient.Update(ctx, got)).To(Succeed())
+
+		_, err = doReconcile()
+		Expect(err).NotTo(HaveOccurred())
+
+		err = k8sClient.Get(ctx, types.NamespacedName{Namespace: "arc-" + name, Name: "thecluster"}, &arc.AutoscalingRunnerSet{})
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: "arc-" + name, Name: "renamed"}, &arc.AutoscalingRunnerSet{})).To(Succeed())
+		Expect(ready().Reason).To(Equal("Replacing"))
+
+		_, err = doReconcile()
+		Expect(err).NotTo(HaveOccurred())
+
+		// The old RBAC is deleted, and waits on the controller's finalizer.
+		sa := &corev1.ServiceAccount{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: "arc-" + name, Name: "thecluster-gha-rs-no-permission"}, sa)).To(Succeed())
+		Expect(sa.DeletionTimestamp).NotTo(BeNil())
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: "arc-" + name, Name: "renamed-gha-rs-no-permission"}, sa)).To(Succeed())
+		Expect(sa.DeletionTimestamp).To(BeNil())
+		Expect(ready().Reason).To(Equal("Pending"))
+	})
+
 	It("tears the scale set down before the namespace", func() {
 		_, err := doReconcile()
 		Expect(err).NotTo(HaveOccurred())
@@ -260,5 +298,12 @@ var _ = Describe("Repository Controller", func() {
 var _ = Describe("DefaultNamespace", func() {
 	It("replaces characters a namespace cannot hold", func() {
 		Expect(DefaultNamespace("arc-", "unmango.github_io")).To(Equal("arc-unmango-github-io"))
+	})
+
+	It("keeps long names within a namespace's length and apart", func() {
+		long := strings.Repeat("a", 70)
+		a, b := DefaultNamespace("arc-", long+"-one"), DefaultNamespace("arc-", long+"-two")
+		Expect(len(a)).To(BeNumerically("<=", 63))
+		Expect(a).NotTo(Equal(b))
 	})
 })

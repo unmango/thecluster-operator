@@ -101,6 +101,7 @@ spec:
                   and deletes it with the Repository. Defaults to the operator's
                   namespace prefix followed by the Repository's name.
                 maxLength: 63
+                pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
                 x-kubernetes-validations:
                 - message: namespace is immutable
