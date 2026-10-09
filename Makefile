@@ -81,11 +81,11 @@ lint-config: ## Verify golangci-lint linter configuration
 
 .PHONY: build
 build: manifests generate vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	go build -o bin/manager ./cmd
 
 .PHONY: run
 run: manifests generate vet ## Run a controller from your host.
-	go run ./cmd/main.go
+	go run ./cmd
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
