@@ -49,6 +49,7 @@ type RepositorySpec struct {
 	// namespace prefix followed by the Repository's name.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="namespace is immutable"
 	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 

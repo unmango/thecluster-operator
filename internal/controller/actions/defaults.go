@@ -17,6 +17,8 @@ limitations under the License.
 package actions
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"strings"
 
@@ -115,9 +117,20 @@ func (d Defaults) resolve(repo *actionsv1alpha1.Repository) resolved {
 // none: the prefix and the name, with the dots and underscores a namespace
 // cannot hold replaced by dashes. It matches the arc-runner-scale-set chart
 // in the-cluster, so a migrated scale set keeps its namespace.
+//
+// A result longer than a namespace can be is cut short and given a hash of
+// the full name, so two long names that share a beginning stay apart.
 func DefaultNamespace(prefix, name string) string {
-	return prefix + strings.NewReplacer(".", "-", "_", "-").Replace(name)
+	ns := prefix + strings.NewReplacer(".", "-", "_", "-").Replace(name)
+	if len(ns) <= maxNamespaceLength {
+		return ns
+	}
+	sum := sha256.Sum256([]byte(name))
+	hash := hex.EncodeToString(sum[:])[:8]
+	return strings.TrimRight(ns[:maxNamespaceLength-len(hash)-1], "-") + "-" + hash
 }
+
+const maxNamespaceLength = 63
 
 // podTemplate is the runner pod for a scale set that brings no template of
 // its own: a runner with docker from a dind sidecar, and a volume at /nix so

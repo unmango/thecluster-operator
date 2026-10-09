@@ -24,6 +24,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -155,6 +156,11 @@ func (r *RepositoryReconciler) apply(ctx context.Context, repo *actionsv1alpha1.
 	ars, err := r.applyScaleSet(ctx, repo, res, names)
 	if err != nil {
 		return err
+	}
+	if replacing, err := r.pruneStale(ctx, repo, res, names); err != nil {
+		return err
+	} else if replacing {
+		return &notReady{"Replacing", "Waiting for the actions-runner-controller to clean up the previous scale set"}
 	}
 
 	repo.Status.Phase = ars.Status.Phase
@@ -374,6 +380,60 @@ func (r *RepositoryReconciler) applyScaleSet(ctx context.Context, repo *actionsv
 		return nil, err
 	}
 	return applied, nil
+}
+
+// pruneStale deletes what this Repository made under names it no longer uses,
+// as after a change to its scale set name or credentials Secret. A renamed
+// scale set goes first, and the rest waits until it is gone, since the
+// controller needs the old credentials and RBAC to deregister it.
+func (r *RepositoryReconciler) pruneStale(ctx context.Context, repo *actionsv1alpha1.Repository, res resolved, n names) (bool, error) {
+	inNamespace := client.InNamespace(res.Namespace)
+	stale := func(obj client.Object, keep string) bool {
+		return obj.GetName() != keep && metav1.IsControlledBy(obj, repo)
+	}
+
+	sets := &arc.AutoscalingRunnerSetList{}
+	if err := r.List(ctx, sets, inNamespace); err != nil {
+		return false, err
+	}
+	replacing := false
+	for i := range sets.Items {
+		ars := &sets.Items[i]
+		if !stale(ars, n.ScaleSet) {
+			continue
+		}
+		replacing = true
+		if ars.DeletionTimestamp.IsZero() {
+			if err := r.Delete(ctx, ars); client.IgnoreNotFound(err) != nil {
+				return false, err
+			}
+		}
+	}
+	if replacing {
+		return true, nil
+	}
+
+	for list, keep := range map[client.ObjectList]string{
+		&corev1.SecretList{}:         res.GitHubConfigSecret.Name,
+		&corev1.ServiceAccountList{}: n.NoPermission,
+		&rbacv1.RoleList{}:           n.ManagerRole,
+		&rbacv1.RoleBindingList{}:    n.ManagerRole,
+	} {
+		if err := r.List(ctx, list, inNamespace); err != nil {
+			return false, err
+		}
+		err := meta.EachListItem(list, func(o runtime.Object) error {
+			obj := o.(client.Object)
+			if !stale(obj, keep) || !obj.GetDeletionTimestamp().IsZero() {
+				return nil
+			}
+			return client.IgnoreNotFound(r.Delete(ctx, obj))
+		})
+		if err != nil {
+			return false, err
+		}
+	}
+	return false, nil
 }
 
 // defaultListenerTemplate sizes the listener, which upstream leaves without
