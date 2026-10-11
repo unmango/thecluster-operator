@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/unmango/thecluster-operator/compare/v0.1.1...v0.1.2) (2026-10-11)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/onsi/gomega to v1.44.0 ([#143](https://github.com/unmango/thecluster-operator/issues/143)) ([7f2da24](https://github.com/unmango/thecluster-operator/commit/7f2da246cb70317e9f95600c7af621165d85496d))
+
 ## [0.1.1](https://github.com/unmango/thecluster-operator/compare/v0.1.0...v0.1.1) (2026-10-09)
 
 
