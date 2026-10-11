@@ -515,8 +515,27 @@ func setReady(repo *actionsv1alpha1.Repository, status metav1.ConditionStatus, r
 	})
 }
 
+// secretIndex indexes Repositories by the namespace/name of the credentials
+// Secret they copy, so a Secret event finds its Repositories without a scan.
+const secretIndex = ".spec.githubConfigSecret"
+
+func (r *RepositoryReconciler) secretKey(obj client.Object) []string {
+	repo, ok := obj.(*actionsv1alpha1.Repository)
+	if !ok {
+		return nil
+	}
+	if key := r.Defaults.resolve(repo).GitHubConfigSecret; key.Name != "" {
+		return []string{key.String()}
+	}
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RepositoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	err := mgr.GetFieldIndexer().IndexField(context.Background(), &actionsv1alpha1.Repository{}, secretIndex, r.secretKey)
+	if err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&actionsv1alpha1.Repository{}).
 		Owns(&arc.AutoscalingRunnerSet{}).
@@ -530,16 +549,14 @@ func (r *RepositoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // it, so a rotated key reaches every scale set.
 func (r *RepositoryReconciler) forSecret(ctx context.Context, obj client.Object) []reconcile.Request {
 	list := &actionsv1alpha1.RepositoryList{}
-	if err := r.List(ctx, list); err != nil {
+	key := client.ObjectKeyFromObject(obj).String()
+	if err := r.List(ctx, list, client.MatchingFields{secretIndex: key}); err != nil {
 		logf.FromContext(ctx).Error(err, "Failed to list Repositories for a Secret")
 		return nil
 	}
-	key := client.ObjectKeyFromObject(obj)
-	var reqs []reconcile.Request
+	reqs := make([]reconcile.Request, 0, len(list.Items))
 	for i := range list.Items {
-		if r.Defaults.resolve(&list.Items[i]).GitHubConfigSecret == key {
-			reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{Name: list.Items[i].Name}})
-		}
+		reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{Name: list.Items[i].Name}})
 	}
 	return reqs
 }

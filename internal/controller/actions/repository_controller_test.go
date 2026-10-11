@@ -32,6 +32,7 @@ import (
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	actionsv1alpha1 "github.com/unmango/thecluster-operator/api/actions/v1alpha1"
@@ -292,6 +293,28 @@ var _ = Describe("Repository Controller", func() {
 
 		err = k8sClient.Get(ctx, types.NamespacedName{Name: name}, &actionsv1alpha1.Repository{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+	})
+})
+
+var _ = Describe("forSecret", func() {
+	It("finds the Repositories that copy a Secret", func() {
+		r := &RepositoryReconciler{Defaults: Defaults{GitHubConfigSecret: types.NamespacedName{Namespace: "default", Name: "gh"}}}
+		r.Client = fake.NewClientBuilder().
+			WithScheme(k8sClient.Scheme()).
+			WithIndex(&actionsv1alpha1.Repository{}, secretIndex, r.secretKey).
+			WithObjects(
+				&actionsv1alpha1.Repository{ObjectMeta: metav1.ObjectMeta{Name: "defaulted"}},
+				&actionsv1alpha1.Repository{
+					ObjectMeta: metav1.ObjectMeta{Name: "other"},
+					Spec: actionsv1alpha1.RepositorySpec{
+						GitHubConfigSecret: &actionsv1alpha1.SecretReference{Namespace: "default", Name: "other"},
+					},
+				},
+			).
+			Build()
+
+		secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "gh"}}
+		Expect(r.forSecret(ctx, secret)).To(ConsistOf(reconcile.Request{NamespacedName: types.NamespacedName{Name: "defaulted"}}))
 	})
 })
 
