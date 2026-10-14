@@ -268,6 +268,52 @@ var _ = Describe("Repository Controller", func() {
 		Expect(ready().Reason).To(Equal("Pending"))
 	})
 
+	It("keeps the old credentials until the old scale set is gone", func() {
+		_, err := doReconcile()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Hold the old scale set the way the controller's cleanup would.
+		old := scaleSet()
+		old.Finalizers = append(old.Finalizers, "test/cleanup")
+		Expect(k8sClient.Update(ctx, old)).To(Succeed())
+
+		// A Secret elsewhere with the same name, holding other credentials.
+		Expect(client.IgnoreAlreadyExists(k8sClient.Create(ctx, &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: "other"},
+		}))).To(Succeed())
+		Expect(client.IgnoreAlreadyExists(k8sClient.Create(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "other", Name: secretKey.Name},
+			StringData: map[string]string{"github_token": "new"},
+		}))).To(Succeed())
+
+		got := &actionsv1alpha1.Repository{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name}, got)).To(Succeed())
+		got.Spec.RunnerScaleSetName = "renamed"
+		got.Spec.GitHubConfigSecret = &actionsv1alpha1.SecretReference{Namespace: "other", Name: secretKey.Name}
+		Expect(k8sClient.Update(ctx, got)).To(Succeed())
+
+		copied := func() string {
+			GinkgoHelper()
+			s := &corev1.Secret{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: "arc-" + name, Name: secretKey.Name}, s)).To(Succeed())
+			return string(s.Data["github_token"])
+		}
+
+		_, err = doReconcile()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ready().Reason).To(Equal("Replacing"))
+		Expect(copied()).To(Equal("test"))
+
+		old = scaleSet()
+		old.Finalizers = nil
+		Expect(k8sClient.Update(ctx, old)).To(Succeed())
+
+		_, err = doReconcile()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ready().Reason).To(Equal("Pending"))
+		Expect(copied()).To(Equal("new"))
+	})
+
 	It("tears the scale set down before the namespace", func() {
 		_, err := doReconcile()
 		Expect(err).NotTo(HaveOccurred())

@@ -146,7 +146,11 @@ func (r *RepositoryReconciler) apply(ctx context.Context, repo *actionsv1alpha1.
 	}
 	repo.Status.Namespace = res.Namespace
 
-	if err := r.copySecret(ctx, repo, res); err != nil {
+	replacing, err := r.pruneScaleSets(ctx, repo, res, names)
+	if err != nil {
+		return err
+	}
+	if err := r.copySecret(ctx, repo, res, replacing); err != nil {
 		return err
 	}
 	if err := r.applyRBAC(ctx, repo, res, names); err != nil {
@@ -157,10 +161,11 @@ func (r *RepositoryReconciler) apply(ctx context.Context, repo *actionsv1alpha1.
 	if err != nil {
 		return err
 	}
-	if replacing, err := r.pruneStale(ctx, repo, res, names); err != nil {
-		return err
-	} else if replacing {
+	if replacing {
 		return &notReady{"Replacing", "Waiting for the actions-runner-controller to clean up the previous scale set"}
+	}
+	if err := r.pruneStale(ctx, repo, res, names); err != nil {
+		return err
 	}
 
 	repo.Status.Phase = ars.Status.Phase
@@ -246,10 +251,21 @@ func (r *RepositoryReconciler) applyNamespace(ctx context.Context, repo *actions
 }
 
 // copySecret copies the GitHub credentials into the scale set's namespace,
-// since an AutoscalingRunnerSet names its Secret without a namespace.
-func (r *RepositoryReconciler) copySecret(ctx context.Context, repo *actionsv1alpha1.Repository, res resolved) error {
+// since an AutoscalingRunnerSet names its Secret without a namespace. While a
+// previous scale set is still being cleaned up, an existing copy is left as is:
+// the controller deregisters that scale set with the credentials in it, and a
+// new source Secret with the same name would otherwise overwrite them.
+func (r *RepositoryReconciler) copySecret(ctx context.Context, repo *actionsv1alpha1.Repository, res resolved, replacing bool) error {
 	if res.GitHubConfigSecret.Name == "" {
 		return &notReady{"NoCredentials", "No githubConfigSecret is set and the operator has no default"}
+	}
+	if replacing {
+		key := types.NamespacedName{Namespace: res.Namespace, Name: res.GitHubConfigSecret.Name}
+		if err := r.Get(ctx, key, &corev1.Secret{}); err == nil {
+			return nil
+		} else if !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 	src := &corev1.Secret{}
 	if err := r.Get(ctx, res.GitHubConfigSecret, src); err != nil {
@@ -382,24 +398,18 @@ func (r *RepositoryReconciler) applyScaleSet(ctx context.Context, repo *actionsv
 	return applied, nil
 }
 
-// pruneStale deletes what this Repository made under names it no longer uses,
-// as after a change to its scale set name or credentials Secret. A renamed
-// scale set goes first, and the rest waits until it is gone, since the
-// controller needs the old credentials and RBAC to deregister it.
-func (r *RepositoryReconciler) pruneStale(ctx context.Context, repo *actionsv1alpha1.Repository, res resolved, n names) (bool, error) {
-	inNamespace := client.InNamespace(res.Namespace)
-	stale := func(obj client.Object, keep string) bool {
-		return obj.GetName() != keep && metav1.IsControlledBy(obj, repo)
-	}
-
+// pruneScaleSets deletes the scale sets this Repository made under a name it
+// no longer uses, as after a change to its scale set name, and reports whether
+// any remain.
+func (r *RepositoryReconciler) pruneScaleSets(ctx context.Context, repo *actionsv1alpha1.Repository, res resolved, n names) (bool, error) {
 	sets := &arc.AutoscalingRunnerSetList{}
-	if err := r.List(ctx, sets, inNamespace); err != nil {
+	if err := r.List(ctx, sets, client.InNamespace(res.Namespace)); err != nil {
 		return false, err
 	}
 	replacing := false
 	for i := range sets.Items {
 		ars := &sets.Items[i]
-		if !stale(ars, n.ScaleSet) {
+		if ars.Name == n.ScaleSet || !metav1.IsControlledBy(ars, repo) {
 			continue
 		}
 		replacing = true
@@ -409,31 +419,35 @@ func (r *RepositoryReconciler) pruneStale(ctx context.Context, repo *actionsv1al
 			}
 		}
 	}
-	if replacing {
-		return true, nil
-	}
+	return replacing, nil
+}
 
+// pruneStale deletes the rest of what this Repository made under names it no
+// longer uses, as after a change to its scale set name or credentials Secret.
+// It runs only once pruneScaleSets finds nothing left, since the controller
+// needs the old credentials and RBAC to deregister a renamed scale set.
+func (r *RepositoryReconciler) pruneStale(ctx context.Context, repo *actionsv1alpha1.Repository, res resolved, n names) error {
 	for list, keep := range map[client.ObjectList]string{
 		&corev1.SecretList{}:         res.GitHubConfigSecret.Name,
 		&corev1.ServiceAccountList{}: n.NoPermission,
 		&rbacv1.RoleList{}:           n.ManagerRole,
 		&rbacv1.RoleBindingList{}:    n.ManagerRole,
 	} {
-		if err := r.List(ctx, list, inNamespace); err != nil {
-			return false, err
+		if err := r.List(ctx, list, client.InNamespace(res.Namespace)); err != nil {
+			return err
 		}
 		err := meta.EachListItem(list, func(o runtime.Object) error {
 			obj := o.(client.Object)
-			if !stale(obj, keep) || !obj.GetDeletionTimestamp().IsZero() {
+			if obj.GetName() == keep || !metav1.IsControlledBy(obj, repo) || !obj.GetDeletionTimestamp().IsZero() {
 				return nil
 			}
 			return client.IgnoreNotFound(r.Delete(ctx, obj))
 		})
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
-	return false, nil
+	return nil
 }
 
 // defaultListenerTemplate sizes the listener, which upstream leaves without
