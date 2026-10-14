@@ -8,8 +8,10 @@ rules:
   - ""
   resources:
   - configmaps
+  - namespaces
   - pods
   - secrets
+  - serviceaccounts
   verbs:
   - create
   - delete
@@ -18,6 +20,50 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/status
+  verbs:
+  - get
+- apiGroups:
+  - actions.github.com
+  resources:
+  - autoscalingrunnersets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - actions.thecluster.io
+  resources:
+  - repositories
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - actions.thecluster.io
+  resources:
+  - repositories/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - actions.thecluster.io
+  resources:
+  - repositories/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - apps
   resources:
@@ -82,6 +128,19 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - registry.thecluster.io
   resources:
