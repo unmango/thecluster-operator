@@ -36,6 +36,9 @@ resources:
 - actions_repository_admin_role.yaml
 - actions_repository_editor_role.yaml
 - actions_repository_viewer_role.yaml
+- actions_user_admin_role.yaml
+- actions_user_editor_role.yaml
+- actions_user_viewer_role.yaml
 - registry_proxycache_admin_role.yaml
 - registry_proxycache_editor_role.yaml
 - registry_proxycache_viewer_role.yaml

@@ -60,10 +60,19 @@ rules:
   - actions.thecluster.io
   resources:
   - repositories/status
+  - users/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - actions.thecluster.io
+  resources:
+  - users
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:

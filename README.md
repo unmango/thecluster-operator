@@ -26,6 +26,13 @@ The `actions.thecluster.io` group is a thin layer over [actions-runner-controlle
   `spec.template` replaces the default runner pod outright.
   The manager needs `--arc-version`, `--arc-service-account`, `--runner-image`, and `--dind-image`; without them every Repository reports `Misconfigured`.
   Deleting a Repository deletes the scale set, waits for the controller to clean it up, then deletes the namespace.
+- `User` is cluster scoped and generates a Repository for each of a GitHub user's repositories it selects, applying `spec.template` to every one.
+  It selects the names in `spec.repositories`, plus, with `spec.discover`, every repository the user owns that the credentials can see.
+  Discovery reads the same `githubConfigSecret` the scale sets use, a GitHub App or a token, and runs every `spec.interval` (ten minutes by default).
+  `spec.include` and `spec.exclude` filter discovered repositories by name glob, and archived repositories and forks are skipped unless `spec.includeArchived` or `spec.includeForks` is set.
+  A generated Repository is named after its repository, lowercased with dots and underscores as dashes, and is deleted once the User no longer selects it.
+  A Repository the User did not create is left alone and listed in `status.conflicts`, so one with hand-written overrides can sit beside a User that would also select it.
+  `--github-url` and `--github-api-url` point it at a GitHub other than github.com.
 
 ### Registries
 

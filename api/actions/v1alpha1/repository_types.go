@@ -53,6 +53,12 @@ type RepositorySpec struct {
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 
+	RepositoryTemplate `json:",inline"`
+}
+
+// RepositoryTemplate is the part of a Repository's spec a User applies to
+// every Repository it generates.
+type RepositoryTemplate struct {
 	// RunnerScaleSetName is the name the scale set registers under, the label
 	// a workflow's runs-on selects. Defaults to the operator's
 	// --runner-scale-set-name.

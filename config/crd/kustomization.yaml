@@ -7,6 +7,7 @@ resources:
 - bases/registry.thecluster.io_registries.yaml
 - bases/registry.thecluster.io_proxycaches.yaml
 - bases/actions.thecluster.io_repositories.yaml
+- bases/actions.thecluster.io_users.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

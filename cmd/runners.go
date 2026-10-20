@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	actionscontroller "github.com/unmango/thecluster-operator/internal/controller/actions"
+	"github.com/unmango/thecluster-operator/internal/github"
 )
 
 // runnerFlags configure the Repository controller. Images and the
@@ -43,6 +44,8 @@ type runnerFlags struct {
 	nixStorageSize           string
 	workSize                 string
 	runnerNixConfig          string
+	githubURL                string
+	githubAPIURL             string
 }
 
 func (f *runnerFlags) bind(fs *flag.FlagSet) {
@@ -66,6 +69,10 @@ func (f *runnerFlags) bind(fs *flag.FlagSet) {
 	fs.StringVar(&f.workSize, "work-storage-size", "5Gi", "Size of a runner's work volume.")
 	fs.StringVar(&f.runnerNixConfig, "runner-nix-config", "",
 		"NIX_CONFIG for the runner container, for example an in-cluster binary cache. Empty sets nothing.")
+	fs.StringVar(&f.githubURL, "github-url", "https://github.com",
+		"Where a User's repositories live, for those it lists by name.")
+	fs.StringVar(&f.githubAPIURL, "github-api-url", github.DefaultAPIURL,
+		"GitHub's REST API, which a User's discovery calls.")
 }
 
 func (f *runnerFlags) defaults() (actionscontroller.Defaults, error) {

@@ -5,4 +5,5 @@ resources:
 - registry_v1alpha1_registry.yaml
 - registry_v1alpha1_proxycache.yaml
 - actions_v1alpha1_repository.yaml
+- actions_v1alpha1_user.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
