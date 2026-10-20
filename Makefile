@@ -50,10 +50,13 @@ check: ## Run nix flake check, which includes the treefmt check.
 vet: ## Run go vet against code.
 	go vet ./...
 
+# go test runs each envtest suite's control plane at once, and on a busy
+# thecluster runner kube-apiserver can outlast envtest's 20s start timeout.
 .PHONY: test
 test: manifests generate vet ## Run tests. KUBEBUILDER_ASSETS comes from the nix devshell.
 	@test -n "$$KUBEBUILDER_ASSETS" || { echo "KUBEBUILDER_ASSETS is unset; run inside the devshell (nix develop)" >&2; exit 1; }
-	go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	KUBEBUILDER_CONTROLPLANE_START_TIMEOUT=$${KUBEBUILDER_CONTROLPLANE_START_TIMEOUT:-2m} \
+		go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # The suite builds the manager image and installs cert-manager before its
 # first spec, which on a thecluster runner outlasts go test's 10m default.
