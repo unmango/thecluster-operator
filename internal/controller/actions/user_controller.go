@@ -33,9 +33,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	gogithub "github.com/google/go-github/v93/github"
 	actionsv1alpha1 "github.com/unmango/thecluster-operator/api/actions/v1alpha1"
@@ -64,6 +66,7 @@ type UserReconciler struct {
 
 // +kubebuilder:rbac:groups=actions.thecluster.io,resources=users,verbs=get;list;watch
 // +kubebuilder:rbac:groups=actions.thecluster.io,resources=users/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=actions.thecluster.io,resources=users/finalizers,verbs=update
 
 // Reconcile generates a Repository for each repository the User selects, and
 // deletes the Repositories it generated for repositories it no longer
@@ -293,11 +296,14 @@ func setUserReady(user *actionsv1alpha1.User, status metav1.ConditionStatus, rea
 	})
 }
 
-// SetupWithManager sets up the controller with the Manager.
+// SetupWithManager sets up the controller with the Manager. Status updates
+// are filtered out, since each reconcile writes the User's own and would
+// otherwise start another discovery before the interval is up.
 func (r *UserReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	generation := builder.WithPredicates(predicate.GenerationChangedPredicate{})
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&actionsv1alpha1.User{}).
-		Owns(&actionsv1alpha1.Repository{}).
+		For(&actionsv1alpha1.User{}, generation).
+		Owns(&actionsv1alpha1.Repository{}, generation).
 		Named("actions-user").
 		Complete(r)
 }

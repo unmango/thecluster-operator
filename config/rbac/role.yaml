@@ -54,6 +54,7 @@ rules:
   - actions.thecluster.io
   resources:
   - repositories/finalizers
+  - users/finalizers
   verbs:
   - update
 - apiGroups:
