@@ -24,12 +24,14 @@ import (
 	"fmt"
 	"testing"
 
+	gogithub "github.com/google/go-github/v93/github"
+
 	"github.com/unmango/thecluster-operator/internal/github"
 	"github.com/unmango/thecluster-operator/internal/github/githubtest"
 )
 
-func repos(n int) []github.Repository {
-	out := make([]github.Repository, n)
+func repos(n int) []*gogithub.Repository {
+	out := make([]*gogithub.Repository, n)
 	for i := range out {
 		out[i] = githubtest.Repo("someone", fmt.Sprintf("repo-%d", i))
 	}
@@ -49,7 +51,7 @@ func TestTokenPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 250 || got[249].Name != "repo-249" {
+	if len(got) != 250 || got[249].GetName() != "repo-249" {
 		t.Fatalf("got %d repositories, want all 250", len(got))
 	}
 }
@@ -106,6 +108,17 @@ func TestApp(t *testing.T) {
 				t.Fatalf("got %d repositories, want 3", len(got))
 			}
 		})
+	}
+}
+
+func TestNonNumericAppID(t *testing.T) {
+	_, err := github.FromSecret(github.DefaultAPIURL, map[string][]byte{
+		github.KeyAppID:             []byte("Iv1.abc"),
+		github.KeyAppInstallationID: []byte("42"),
+		github.KeyAppPrivateKey:     []byte("key"),
+	})
+	if err == nil {
+		t.Fatal("accepted an App ID that is not a number")
 	}
 }
 

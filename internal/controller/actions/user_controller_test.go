@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	gogithub "github.com/google/go-github/v93/github"
 	actionsv1alpha1 "github.com/unmango/thecluster-operator/api/actions/v1alpha1"
 	"github.com/unmango/thecluster-operator/internal/github"
 	"github.com/unmango/thecluster-operator/internal/github/githubtest"
@@ -189,10 +190,10 @@ var _ = Describe("User Controller", func() {
 			user.Spec.Interval = &metav1.Duration{Duration: 5 * time.Minute}
 
 			archived := githubtest.Repo(login, repo("old"))
-			archived.Archived = true
+			archived.Archived = new(true)
 			fork := githubtest.Repo(login, repo("fork"))
-			fork.Fork = true
-			gh.Repositories = []github.Repository{
+			fork.Fork = new(true)
+			gh.Repositories = []*gogithub.Repository{
 				githubtest.Repo(login, repo("dotfiles")),
 				githubtest.Repo(login, repo("Charts")),
 				githubtest.Repo(login, repo("scratch")),

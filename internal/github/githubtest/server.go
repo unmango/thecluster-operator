@@ -24,13 +24,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/unmango/thecluster-operator/internal/github"
+	"github.com/google/go-github/v93/github"
 )
 
 // Server is a fake GitHub. Its fields may be read and changed between
@@ -46,7 +48,7 @@ type Server struct {
 	AppKey       *rsa.PublicKey
 	Installation string
 	// Repositories are what both listings return, in pages.
-	Repositories []github.Repository
+	Repositories []*github.Repository
 }
 
 const installationToken = "installation-token"
@@ -74,7 +76,10 @@ func (s *Server) accessToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"Not Found"}`, http.StatusNotFound)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]string{"token": installationToken})
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"token":      installationToken,
+		"expires_at": time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	})
 }
 
 func verify(jwt string, key *rsa.PublicKey) bool {
@@ -91,29 +96,32 @@ func verify(jwt string, key *rsa.PublicKey) bool {
 }
 
 func (s *Server) installationRepositories(w http.ResponseWriter, r *http.Request) {
-	if !s.authorized(r, installationToken) {
+	if !authorized(r, installationToken) {
 		http.Error(w, `{"message":"Bad credentials"}`, http.StatusUnauthorized)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"repositories": s.page(r)})
+	repos := s.page(w, r)
+	writeJSON(w, http.StatusOK, map[string]any{"total_count": len(repos), "repositories": repos})
 }
 
 func (s *Server) userRepos(w http.ResponseWriter, r *http.Request) {
 	s.Mu.Lock()
 	token := s.Token
 	s.Mu.Unlock()
-	if !s.authorized(r, token) {
+	if !authorized(r, token) {
 		http.Error(w, `{"message":"Bad credentials"}`, http.StatusUnauthorized)
 		return
 	}
-	writeJSON(w, http.StatusOK, s.page(r))
+	writeJSON(w, http.StatusOK, s.page(w, r))
 }
 
-func (s *Server) authorized(r *http.Request, token string) bool {
-	return token != "" && r.Header.Get("Authorization") == "token "+token
+func authorized(r *http.Request, token string) bool {
+	auth := r.Header.Get("Authorization")
+	return token != "" && (auth == "token "+token || auth == "Bearer "+token)
 }
 
-func (s *Server) page(r *http.Request) []github.Repository {
+// page returns the requested page and links the next one, as GitHub does.
+func (s *Server) page(w http.ResponseWriter, r *http.Request) []*github.Repository {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
 	size, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
@@ -126,7 +134,14 @@ func (s *Server) page(r *http.Request) []github.Repository {
 	}
 	start := min((page-1)*size, len(s.Repositories))
 	end := min(start+size, len(s.Repositories))
-	return append([]github.Repository{}, s.Repositories[start:end]...)
+	if end < len(s.Repositories) {
+		next := *r.URL
+		q := next.Query()
+		q.Set("page", strconv.Itoa(page+1))
+		next.RawQuery = q.Encode()
+		w.Header().Set("Link", fmt.Sprintf(`<%s%s>; rel="next"`, s.URL, next.RequestURI()))
+	}
+	return s.Repositories[start:end]
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -136,8 +151,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 // Repo is a repository owned by owner.
-func Repo(owner, name string) github.Repository {
-	r := github.Repository{Name: name, HTMLURL: "https://github.com/" + owner + "/" + name}
-	r.Owner.Login = owner
-	return r
+func Repo(owner, name string) *github.Repository {
+	return &github.Repository{
+		Name:    new(name),
+		HTMLURL: new("https://github.com/" + owner + "/" + name),
+		Owner:   &github.User{Login: new(owner)},
+	}
 }

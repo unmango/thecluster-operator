@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	gogithub "github.com/google/go-github/v93/github"
 	actionsv1alpha1 "github.com/unmango/thecluster-operator/api/actions/v1alpha1"
 	"github.com/unmango/thecluster-operator/internal/github"
 )
@@ -174,7 +175,7 @@ func (r *UserReconciler) selected(ctx context.Context, user *actionsv1alpha1.Use
 		}
 		for _, repo := range repos {
 			if selects(user.Spec, repo) {
-				add(repo.Name, repo.HTMLURL)
+				add(repo.GetName(), repo.GetHTMLURL())
 			}
 		}
 		user.Status.LastDiscoveryTime = &metav1.Time{Time: time.Now()}
@@ -186,7 +187,7 @@ func (r *UserReconciler) selected(ctx context.Context, user *actionsv1alpha1.Use
 	return want, nil
 }
 
-func (r *UserReconciler) discover(ctx context.Context, user *actionsv1alpha1.User) ([]github.Repository, error) {
+func (r *UserReconciler) discover(ctx context.Context, user *actionsv1alpha1.User) ([]*gogithub.Repository, error) {
 	key := r.Defaults.GitHubConfigSecret
 	if ref := user.Spec.Template.GitHubConfigSecret; ref != nil {
 		key = types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
@@ -213,14 +214,14 @@ func (r *UserReconciler) discover(ctx context.Context, user *actionsv1alpha1.Use
 }
 
 // selects reports whether discovery keeps repo.
-func selects(spec actionsv1alpha1.UserSpec, repo github.Repository) bool {
-	if !strings.EqualFold(repo.Owner.Login, spec.Login) {
+func selects(spec actionsv1alpha1.UserSpec, repo *gogithub.Repository) bool {
+	if !strings.EqualFold(repo.GetOwner().GetLogin(), spec.Login) {
 		return false
 	}
-	if (repo.Archived && !spec.IncludeArchived) || (repo.Fork && !spec.IncludeForks) {
+	if (repo.GetArchived() && !spec.IncludeArchived) || (repo.GetFork() && !spec.IncludeForks) {
 		return false
 	}
-	name := strings.ToLower(repo.Name)
+	name := strings.ToLower(repo.GetName())
 	if len(spec.Include) > 0 && !matchAny(spec.Include, name) {
 		return false
 	}
