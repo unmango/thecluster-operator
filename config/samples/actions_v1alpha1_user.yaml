@@ -1,0 +1,14 @@
+apiVersion: actions.thecluster.io/v1alpha1
+kind: User
+metadata:
+  labels:
+    app.kubernetes.io/name: thecluster-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: unstoppablemango
+spec:
+  login: UnstoppableMango
+  discover: true
+  exclude:
+  - "*-archive"
+  repositories:
+  - dotfiles

@@ -352,9 +352,9 @@ var _ = Describe("forSecret", func() {
 				&actionsv1alpha1.Repository{ObjectMeta: metav1.ObjectMeta{Name: "defaulted"}},
 				&actionsv1alpha1.Repository{
 					ObjectMeta: metav1.ObjectMeta{Name: "other"},
-					Spec: actionsv1alpha1.RepositorySpec{
+					Spec: actionsv1alpha1.RepositorySpec{RepositoryTemplate: actionsv1alpha1.RepositoryTemplate{
 						GitHubConfigSecret: &actionsv1alpha1.SecretReference{Namespace: "default", Name: "other"},
-					},
+					}},
 				},
 			).
 			Build()
