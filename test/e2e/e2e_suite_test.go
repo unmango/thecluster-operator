@@ -77,7 +77,9 @@ var _ = BeforeSuite(func() {
 var _ = AfterSuite(func() {
 	By("removing the AutoscalingRunnerSet CRD")
 	cmd := exec.Command("kubectl", "delete", "--ignore-not-found", "-f", arcCRD)
-	_, _ = utils.Run(cmd)
+	if _, err := utils.Run(cmd); err != nil {
+		_, _ = fmt.Fprintf(GinkgoWriter, "warning: %v\n", err)
+	}
 
 	// Teardown CertManager after the suite if not skipped and if it was not already installed
 	if !skipCertManagerInstall && !isCertManagerAlreadyInstalled {
