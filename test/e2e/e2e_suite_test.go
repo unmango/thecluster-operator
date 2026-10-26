@@ -32,6 +32,13 @@ var (
 	skipCertManagerInstall        = os.Getenv("CERT_MANAGER_INSTALL_SKIP") == "true"
 	isCertManagerAlreadyInstalled = false
 	projectImage                  = "ghcr.io/unmango/thecluster-operator:v0.0.1"
+
+	// The Repository controller watches AutoscalingRunnerSets, and a watch on a
+	// kind the API server does not serve never syncs: the manager exits when the
+	// cache sync times out and restarts every couple of minutes. Kind has no
+	// actions-runner-controller, so the suite installs the stand-in CRD the
+	// envtest suite uses.
+	arcCRD = "internal/controller/actions/testdata/actions.github.com_autoscalingrunnersets.yaml"
 )
 
 func TestE2E(t *testing.T) {
@@ -50,6 +57,11 @@ var _ = BeforeSuite(func() {
 	err = utils.LoadImageToKindClusterWithName(projectImage)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to load the manager(Operator) image into Kind")
 
+	By("installing the AutoscalingRunnerSet CRD")
+	cmd = exec.Command("kubectl", "apply", "-f", arcCRD)
+	_, err = utils.Run(cmd)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "Failed to install the AutoscalingRunnerSet CRD")
+
 	if !skipCertManagerInstall {
 		By("checking if cert manager is installed already")
 		isCertManagerAlreadyInstalled = utils.IsCertManagerCRDsInstalled()
@@ -63,6 +75,12 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	By("removing the AutoscalingRunnerSet CRD")
+	cmd := exec.Command("kubectl", "delete", "--ignore-not-found", "-f", arcCRD)
+	if _, err := utils.Run(cmd); err != nil {
+		_, _ = fmt.Fprintf(GinkgoWriter, "warning: %v\n", err)
+	}
+
 	// Teardown CertManager after the suite if not skipped and if it was not already installed
 	if !skipCertManagerInstall && !isCertManagerAlreadyInstalled {
 		_, _ = fmt.Fprintf(GinkgoWriter, "Uninstalling CertManager...\n")
