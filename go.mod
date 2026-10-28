@@ -13,7 +13,7 @@ require (
 	github.com/a8m/envsubst v1.4.3
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/google/go-github/v93 v93.0.0
-	github.com/onsi/ginkgo/v2 v2.33.0
+	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
