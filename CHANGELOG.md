@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/unmango/thecluster-operator/compare/v0.1.2...v0.1.3) (2026-10-28)
+
+
+### Bug Fixes
+
+* **deps:** update k8s.io/utils digest to ca04ba5 ([#152](https://github.com/unmango/thecluster-operator/issues/152)) ([c32c06a](https://github.com/unmango/thecluster-operator/commit/c32c06a304d0bae1b510dfec538be9ea814e31da))
+
 ## [0.1.2](https://github.com/unmango/thecluster-operator/compare/v0.1.1...v0.1.2) (2026-10-26)
 
 
