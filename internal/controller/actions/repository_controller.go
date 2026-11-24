@@ -61,7 +61,6 @@ const (
 	managedBy  = "thecluster-operator"
 )
 
-// RepositoryReconciler reconciles a Repository object
 type RepositoryReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
@@ -180,7 +179,6 @@ func (r *RepositoryReconciler) apply(ctx context.Context, repo *actionsv1alpha1.
 	}
 }
 
-// names are the objects a scale set's chart release would name after it.
 type names struct {
 	ScaleSet     string
 	ManagerRole  string
@@ -450,8 +448,7 @@ func (r *RepositoryReconciler) pruneStale(ctx context.Context, repo *actionsv1al
 	return nil
 }
 
-// defaultListenerTemplate sizes the listener, which upstream leaves without
-// resources. It measures a couple of millicores and a few MiB at rest.
+// defaultListenerTemplate sizes the listener, which upstream leaves without resources.
 func defaultListenerTemplate() *corev1.PodTemplateSpec {
 	return &corev1.PodTemplateSpec{
 		Spec: corev1.PodSpec{

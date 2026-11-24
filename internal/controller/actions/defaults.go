@@ -132,15 +132,9 @@ func DefaultNamespace(prefix, name string) string {
 
 const maxNamespaceLength = 63
 
-// podTemplate is the runner pod for a scale set that brings no template of
-// its own: a runner with docker from a dind sidecar, and a volume at /nix so
-// nix builds stay off the container's overlay layer.
-//
-// It is the template the-cluster's arc-runners scale sets run, and the
-// comments there explain each piece. The short version: dind runs as a native
-// sidecar, the work volume is shared between it and the runner, init-nix hands
-// the nix volume to the runner because a CSI volume comes up setgid and root
-// owned, and fsGroup 1001 makes the runner the group owner of both volumes.
+// podTemplate is the runner pod for a scale set that brings no template of its own, matching the-cluster's arc-runners scale sets.
+// A volume at /nix keeps nix builds off the container's overlay layer.
+// dind runs as a native sidecar sharing the work volume, init-nix hands the nix volume to the runner because a CSI volume comes up setgid and root owned, and fsGroup 1001 makes the runner the group owner of both.
 func (d Defaults) podTemplate(r resolved, serviceAccount string) corev1.PodTemplateSpec {
 	ephemeral := func(size resource.Quantity) *corev1.EphemeralVolumeSource {
 		return &corev1.EphemeralVolumeSource{
