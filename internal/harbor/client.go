@@ -212,11 +212,20 @@ func (c *Client) GetProject(ctx context.Context, name string) (*Project, error) 
 
 // CreateProxyProject creates a project that proxies registryID.
 func (c *Client) CreateProxyProject(ctx context.Context, name string, registryID int64, public bool) error {
+	return c.createProject(ctx, name, &registryID, public)
+}
+
+// CreateProject creates a project that holds what is pushed to it.
+func (c *Client) CreateProject(ctx context.Context, name string, public bool) error {
+	return c.createProject(ctx, name, nil, public)
+}
+
+func (c *Client) createProject(ctx context.Context, name string, registryID *int64, public bool) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	req := &models.ProjectReq{
 		ProjectName: name,
-		RegistryID:  &registryID,
+		RegistryID:  registryID,
 		Metadata:    &models.ProjectMetadata{Public: strconv.FormatBool(public)},
 	}
 	_, err := c.api.Project.CreateProject(ctx, project.NewCreateProjectParams().WithProject(req))
@@ -264,6 +273,12 @@ func (c *Client) DeleteProject(ctx context.Context, name string) error {
 			}
 		}
 	}
+	return c.DeleteEmptyProject(ctx, name)
+}
+
+// DeleteEmptyProject deletes a project, which Harbor refuses while it holds
+// any repository. A project that is already gone is not an error.
+func (c *Client) DeleteEmptyProject(ctx context.Context, name string) error {
 	params := project.NewDeleteProjectParams().WithProjectNameOrID(name).WithXIsResourceName(byName)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

@@ -157,6 +157,7 @@ rules:
 - apiGroups:
   - registry.thecluster.io
   resources:
+  - projects
   - proxycaches
   - registries
   verbs:
@@ -170,6 +171,7 @@ rules:
 - apiGroups:
   - registry.thecluster.io
   resources:
+  - projects/finalizers
   - proxycaches/finalizers
   - registries/finalizers
   verbs:
@@ -177,6 +179,7 @@ rules:
 - apiGroups:
   - registry.thecluster.io
   resources:
+  - projects/status
   - proxycaches/status
   - registries/status
   verbs:

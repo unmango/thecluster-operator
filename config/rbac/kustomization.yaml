@@ -33,6 +33,9 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the thecluster-operator itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- registry_project_admin_role.yaml
+- registry_project_editor_role.yaml
+- registry_project_viewer_role.yaml
 - actions_repository_admin_role.yaml
 - actions_repository_editor_role.yaml
 - actions_repository_viewer_role.yaml
