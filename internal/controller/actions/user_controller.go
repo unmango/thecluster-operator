@@ -52,7 +52,6 @@ const (
 	retryInterval   = time.Minute
 )
 
-// UserReconciler reconciles a User object
 type UserReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme

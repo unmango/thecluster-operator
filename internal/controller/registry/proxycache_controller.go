@@ -44,7 +44,6 @@ type errConflict struct{ msg string }
 
 func (e errConflict) Error() string { return e.msg }
 
-// ProxyCacheReconciler reconciles a ProxyCache object
 type ProxyCacheReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
