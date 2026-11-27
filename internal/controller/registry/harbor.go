@@ -56,7 +56,7 @@ func harborFor(ctx context.Context, c client.Client, reg *registryv1alpha1.Regis
 	if username == "" {
 		username = "admin"
 	}
-	return harbor.New(h.URL, username, password), nil
+	return harbor.New(h.URL, username, password)
 }
 
 func secretValue(ctx context.Context, c client.Client, namespace, name, key string) (string, error) {
