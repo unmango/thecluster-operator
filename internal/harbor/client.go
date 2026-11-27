@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
@@ -37,6 +38,10 @@ import (
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/user"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
 )
+
+// timeout bounds each request. go-client only applies its own deadline to a
+// call made without a context, and its HTTP client has none.
+const timeout = 30 * time.Second
 
 // Client talks to one Harbor instance as one user.
 type Client struct {
@@ -103,12 +108,16 @@ type SystemInfo struct {
 
 // Ping checks the credentials by fetching the current user.
 func (c *Client) Ping(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	_, err := c.api.User.GetCurrentUserInfo(ctx, user.NewGetCurrentUserInfoParams())
 	return err
 }
 
 // SystemInfo returns the instance's public addresses.
 func (c *Client) SystemInfo(ctx context.Context) (*SystemInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	resp, err := c.api.Systeminfo.GetSystemInfo(ctx, systeminfo.NewGetSystemInfoParams())
 	if err != nil {
 		return nil, err
@@ -121,6 +130,8 @@ func (c *Client) SystemInfo(ctx context.Context) (*SystemInfo, error) {
 
 // GetRegistry returns the registry endpoint called name, or nil if there is none.
 func (c *Client) GetRegistry(ctx context.Context, name string) (*Registry, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	q := "name=" + name
 	resp, err := c.api.Registry.ListRegistries(ctx, registry.NewListRegistriesParams().WithQ(&q))
 	if err != nil {
@@ -143,6 +154,8 @@ func (c *Client) GetRegistry(ctx context.Context, name string) (*Registry, error
 
 // CreateRegistry adds a registry endpoint.
 func (c *Client) CreateRegistry(ctx context.Context, r *Registry) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	m := &models.Registry{Name: r.Name, Type: r.Type, URL: r.URL, Insecure: r.Insecure}
 	if cred := r.Credential; cred != nil {
 		m.Credential = &models.RegistryCredential{Type: cred.Type, AccessKey: cred.AccessKey, AccessSecret: cred.AccessSecret}
@@ -154,6 +167,8 @@ func (c *Client) CreateRegistry(ctx context.Context, r *Registry) error {
 // UpdateRegistry sets an endpoint's URL and, when cred is non-nil, its
 // credential. A registry's type cannot be updated.
 func (c *Client) UpdateRegistry(ctx context.Context, id int64, url string, insecure bool, cred *Credential) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	m := &models.RegistryUpdate{URL: &url, Insecure: &insecure}
 	if cred != nil {
 		m.CredentialType = &cred.Type
@@ -167,6 +182,8 @@ func (c *Client) UpdateRegistry(ctx context.Context, id int64, url string, insec
 // DeleteRegistry removes a registry endpoint. Harbor refuses while a
 // project still proxies it.
 func (c *Client) DeleteRegistry(ctx context.Context, id int64) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	_, err := c.api.Registry.DeleteRegistry(ctx, registry.NewDeleteRegistryParams().WithID(id))
 	return err
 }
@@ -175,6 +192,8 @@ var byName = new(true)
 
 // GetProject returns the project called name, or nil if there is none.
 func (c *Client) GetProject(ctx context.Context, name string) (*Project, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	params := project.NewGetProjectParams().WithProjectNameOrID(name).WithXIsResourceName(byName)
 	resp, err := c.api.Project.GetProject(ctx, params)
 	if IsNotFound(err) {
@@ -193,6 +212,8 @@ func (c *Client) GetProject(ctx context.Context, name string) (*Project, error) 
 
 // CreateProxyProject creates a project that proxies registryID.
 func (c *Client) CreateProxyProject(ctx context.Context, name string, registryID int64, public bool) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	req := &models.ProjectReq{
 		ProjectName: name,
 		RegistryID:  &registryID,
@@ -204,6 +225,8 @@ func (c *Client) CreateProxyProject(ctx context.Context, name string, registryID
 
 // SetProjectPublic changes whether anonymous clients can pull from a project.
 func (c *Client) SetProjectPublic(ctx context.Context, name string, public bool) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	req := &models.ProjectReq{Metadata: &models.ProjectMetadata{Public: strconv.FormatBool(public)}}
 	params := project.NewUpdateProjectParams().WithProjectNameOrID(name).WithXIsResourceName(byName).WithProject(req)
 	_, err := c.api.Project.UpdateProject(ctx, params)
@@ -216,7 +239,9 @@ func (c *Client) DeleteProject(ctx context.Context, name string) error {
 	pageSize := int64(100)
 	for {
 		params := repository.NewListRepositoriesParams().WithProjectName(name).WithPageSize(&pageSize)
-		resp, err := c.api.Repository.ListRepositories(ctx, params)
+		reqCtx, cancel := context.WithTimeout(ctx, timeout)
+		resp, err := c.api.Repository.ListRepositories(reqCtx, params)
+		cancel()
 		if IsNotFound(err) {
 			return nil
 		}
@@ -231,12 +256,17 @@ func (c *Client) DeleteProject(ctx context.Context, name string) error {
 			// and go-client encodes path parameters once.
 			rel := url.PathEscape(strings.TrimPrefix(repo.Name, name+"/"))
 			params := repository.NewDeleteRepositoryParams().WithProjectName(name).WithRepositoryName(rel)
-			if _, err := c.api.Repository.DeleteRepository(ctx, params); err != nil && !IsNotFound(err) {
+			reqCtx, cancel := context.WithTimeout(ctx, timeout)
+			_, err := c.api.Repository.DeleteRepository(reqCtx, params)
+			cancel()
+			if err != nil && !IsNotFound(err) {
 				return err
 			}
 		}
 	}
 	params := project.NewDeleteProjectParams().WithProjectNameOrID(name).WithXIsResourceName(byName)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	_, err := c.api.Project.DeleteProject(ctx, params)
 	if IsNotFound(err) {
 		return nil
