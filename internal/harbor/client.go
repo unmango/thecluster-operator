@@ -22,6 +22,7 @@ package harbor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -352,17 +353,21 @@ func (c *Client) RobotExists(ctx context.Context, id int64) (bool, error) {
 	return err == nil, err
 }
 
-// FindRobot returns the id of the robot whose full name is name, or 0.
-func (c *Client) FindRobot(ctx context.Context, name string) (int64, error) {
+// FindRobot returns the id of the robot called name in the project with
+// projectID, or 0. Harbor lists only system robots unless the query names a
+// project, and stores names without its robot$ prefix, so this lists the
+// project's robots and matches the name's end.
+func (c *Client) FindRobot(ctx context.Context, projectID int64, name string) (int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	q := "name=" + name
-	resp, err := c.api.Robot.ListRobot(ctx, robot.NewListRobotParams().WithQ(&q))
+	q := fmt.Sprintf("Level=project,ProjectID=%d", projectID)
+	pageSize := int64(100)
+	resp, err := c.api.Robot.ListRobot(ctx, robot.NewListRobotParams().WithQ(&q).WithPageSize(&pageSize))
 	if err != nil {
 		return 0, err
 	}
 	for _, r := range resp.Payload {
-		if r.Name == name {
+		if strings.HasSuffix(r.Name, "+"+name) {
 			return r.ID, nil
 		}
 	}

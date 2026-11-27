@@ -302,11 +302,19 @@ func (s *Server) deleteRepository(w http.ResponseWriter, r *http.Request) {
 	fail(w, http.StatusNotFound, "not found")
 }
 
+// listRobots lists a project's robots for q=Level=project,ProjectID=<id>,
+// and otherwise only system robots, which the fake has none of.
 func (s *Server) listRobots(w http.ResponseWriter, r *http.Request) {
-	name := strings.TrimPrefix(r.URL.Query().Get("q"), "name=")
+	query := map[string]string{}
+	for _, kv := range strings.Split(r.URL.Query().Get("q"), ",") {
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			query[k] = v
+		}
+	}
 	out := []harbor.Robot{}
 	for _, robot := range s.Robots {
-		if robot.Name == name {
+		p := s.Projects[robot.Permissions[0].Namespace]
+		if query["Level"] == "project" && p != nil && strconv.FormatInt(p.ProjectID, 10) == query["ProjectID"] {
 			c := *robot
 			c.Secret = ""
 			out = append(out, c)
