@@ -2,6 +2,6 @@ apiVersion: v2
 name: thecluster-operator
 description: A Helm chart to distribute the project thecluster-operator
 type: application
-version: 0.1.2
-appVersion: 0.1.2
+version: 0.1.3
+appVersion: 0.1.3
 icon: https://example.com/icon.png

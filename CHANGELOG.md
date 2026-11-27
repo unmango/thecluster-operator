@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.1.3](https://github.com/unmango/thecluster-operator/compare/v0.1.2...v0.1.3) (2026-11-27)
+
+
+### Features
+
+* **registry:** add a Project kind for private Harbor projects ([#168](https://github.com/unmango/thecluster-operator/issues/168)) ([9979195](https://github.com/unmango/thecluster-operator/commit/997919562f80cf5ada2b444e7cb2fb174db17ac9))
+
+
+### Bug Fixes
+
+* **deps:** update k8s.io/utils digest to ca04ba5 ([#152](https://github.com/unmango/thecluster-operator/issues/152)) ([c32c06a](https://github.com/unmango/thecluster-operator/commit/c32c06a304d0bae1b510dfec538be9ea814e31da))
+
+
+### Documentation
+
+* trim comments to the non-obvious why ([#161](https://github.com/unmango/thecluster-operator/issues/161)) ([f42e5cd](https://github.com/unmango/thecluster-operator/commit/f42e5cd07e692fb0415976baccd768d6917f03c0))
+
+
+### Code Refactoring
+
+* **harbor:** move the Harbor client to goharbor/go-client ([#167](https://github.com/unmango/thecluster-operator/issues/167)) ([fdbf1b1](https://github.com/unmango/thecluster-operator/commit/fdbf1b10472748701f7169d62948690d4f5769c1)), closes [#162](https://github.com/unmango/thecluster-operator/issues/162)
+
 ## [0.1.2](https://github.com/unmango/thecluster-operator/compare/v0.1.1...v0.1.2) (2026-10-26)
 
 
