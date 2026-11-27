@@ -13,6 +13,7 @@ An operator for useful stuff in your CLUSTER. WIP.
 | `pia.thecluster.io`      | `WireguardConfig` | Generates a WireGuard config from PIA credentials |
 | `registry.thecluster.io` | `Registry`        | Connects to a Harbor instance                     |
 | `registry.thecluster.io` | `ProxyCache`      | A pull-through cache of one upstream registry     |
+| `registry.thecluster.io` | `Project`         | A private project to push to                      |
 
 Samples live in `config/samples/`.
 
@@ -44,6 +45,9 @@ Harbor is the only backend so far.
   On Harbor it becomes a registry endpoint and a proxy-cache project, both named after the ProxyCache, and `status.endpoint` is the prefix to pull through.
   Settings changed in Harbor are put back on the next resync, every ten minutes.
   Deleting the ProxyCache deletes the project, its cached images, and the endpoint.
+- `Project` is a private project named after it, with `status.endpoint` as the prefix to push to.
+  Project names are global to the Registry, so a project the operator did not create, including one another namespace claimed first, is refused with a `Conflict` condition.
+  Deleting the Project deletes the Harbor project only once it is empty, since what was pushed cannot be pulled again; until then the Project stays, reporting why.
 
 ## Development
 

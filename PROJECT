@@ -63,4 +63,13 @@ resources:
   kind: User
   path: github.com/unmango/thecluster-operator/api/actions/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: thecluster.io
+  group: registry
+  kind: Project
+  path: github.com/unmango/thecluster-operator/api/registry/v1alpha1
+  version: v1alpha1
 version: "3"
