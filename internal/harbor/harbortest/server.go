@@ -72,7 +72,7 @@ func New(password string) *Server {
 
 	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if user, pass, ok := r.BasicAuth(); !ok || user != "admin" || pass != s.Password {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			fail(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 		s.Mu.Lock()
@@ -132,7 +132,7 @@ func (s *Server) createRegistry(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, existing := range s.Registries {
 		if existing.Name == reg.Name {
-			http.Error(w, "conflict", http.StatusConflict)
+			fail(w, http.StatusConflict, "conflict")
 			return
 		}
 	}
@@ -146,7 +146,7 @@ func (s *Server) registry(w http.ResponseWriter, r *http.Request) *harbor.Regist
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	reg, ok := s.Registries[id]
 	if !ok {
-		http.Error(w, "not found", http.StatusNotFound)
+		fail(w, http.StatusNotFound, "not found")
 	}
 	return reg
 }
@@ -181,7 +181,7 @@ func (s *Server) deleteRegistry(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, p := range s.Projects {
 		if p.RegistryID == reg.ID {
-			http.Error(w, "registry in use", http.StatusPreconditionFailed)
+			fail(w, http.StatusPreconditionFailed, "registry in use")
 			return
 		}
 	}
@@ -192,7 +192,7 @@ func (s *Server) deleteRegistry(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getProject(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.Projects[r.PathValue("name")]
 	if !ok {
-		http.Error(w, "not found", http.StatusNotFound)
+		fail(w, http.StatusNotFound, "not found")
 		return
 	}
 	reply(w, p)
@@ -208,11 +208,11 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, ok := s.Projects[body.Name]; ok {
-		http.Error(w, "conflict", http.StatusConflict)
+		fail(w, http.StatusConflict, "conflict")
 		return
 	}
 	if _, ok := s.Registries[body.RegistryID]; !ok && body.RegistryID != 0 {
-		http.Error(w, "no such registry", http.StatusBadRequest)
+		fail(w, http.StatusBadRequest, "no such registry")
 		return
 	}
 	s.nextID++
@@ -223,7 +223,7 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 func (s *Server) updateProject(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.Projects[r.PathValue("name")]
 	if !ok {
-		http.Error(w, "not found", http.StatusNotFound)
+		fail(w, http.StatusNotFound, "not found")
 		return
 	}
 	var body struct {
@@ -241,11 +241,11 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request) {
 func (s *Server) deleteProject(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if _, ok := s.Projects[name]; !ok {
-		http.Error(w, "not found", http.StatusNotFound)
+		fail(w, http.StatusNotFound, "not found")
 		return
 	}
 	if len(s.Repositories[name]) > 0 {
-		http.Error(w, "project contains repositories", http.StatusPreconditionFailed)
+		fail(w, http.StatusPreconditionFailed, "project contains repositories")
 		return
 	}
 	delete(s.Projects, name)
@@ -266,7 +266,7 @@ func (s *Server) deleteRepository(w http.ResponseWriter, r *http.Request) {
 	// the mux decodes once there is still one level left.
 	rel, err := url.PathUnescape(r.PathValue("repo"))
 	if err != nil || strings.Contains(r.PathValue("repo"), "/") {
-		http.Error(w, "repository name not double-encoded", http.StatusBadRequest)
+		fail(w, http.StatusBadRequest, "repository name not double-encoded")
 		return
 	}
 	repos := s.Repositories[project]
@@ -277,12 +277,12 @@ func (s *Server) deleteRepository(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.Error(w, "not found", http.StatusNotFound)
+	fail(w, http.StatusNotFound, "not found")
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		fail(w, http.StatusBadRequest, err.Error())
 		return false
 	}
 	return true
@@ -291,4 +291,14 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 func reply(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// fail replies with an error body shaped like Harbor's, which go-client
+// decodes as JSON.
+func fail(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"errors": []map[string]string{{"code": http.StatusText(status), "message": msg}},
+	})
 }
