@@ -2,15 +2,14 @@
 	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
 	"extends": [
 		"config:recommended",
-		"github>UnstoppableMango/renovate-config"
+		"github>UnstoppableMango/renovate-config",
+		"github>UnstoppableMango/renovate-config:nix",
+		"github>UnstoppableMango/renovate-config:gomod2nix(nix)"
 	],
 	"nix": {
 		"enabled": true
 	},
 	"semanticCommits": "enabled",
-	"schedule": [
-		"before 4am on the first day of the month"
-	],
 	"major": {
 		"dependencyDashboardApproval": true
 	},

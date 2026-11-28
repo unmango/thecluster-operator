@@ -14,5 +14,8 @@ kind-cluster: hack/kind-config.yml
 go.sum: go.mod $(shell $(DEVCTL) list --go)
 	go mod tidy
 
+nix/gomod2nix.toml: go.mod go.sum
+	gomod2nix generate --outdir nix
+
 .envrc: hack/example.envrc
 	cp $< $@
