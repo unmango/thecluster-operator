@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/unmango/thecluster-operator/compare/v0.1.3...v0.1.4) (2026-11-28)
+
+
+### Features
+
+* **harbor:** add robot accounts and a Key Vault secret store writer ([#170](https://github.com/unmango/thecluster-operator/issues/170)) ([fd798f8](https://github.com/unmango/thecluster-operator/commit/fd798f8b353117a62560b36a0c333c4c8082b2b2))
+
 ## [0.1.3](https://github.com/unmango/thecluster-operator/compare/v0.1.2...v0.1.3) (2026-11-27)
 
 
