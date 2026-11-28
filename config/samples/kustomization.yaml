@@ -7,4 +7,5 @@ resources:
 - actions_v1alpha1_repository.yaml
 - actions_v1alpha1_user.yaml
 - registry_v1alpha1_project.yaml
+- registry_v1alpha1_registrycredential.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

@@ -157,6 +157,7 @@ rules:
   - projects
   - proxycaches
   - registries
+  - registrycredentials
   verbs:
   - create
   - delete
@@ -171,6 +172,7 @@ rules:
   - projects/finalizers
   - proxycaches/finalizers
   - registries/finalizers
+  - registrycredentials/finalizers
   verbs:
   - update
 - apiGroups:
@@ -179,6 +181,7 @@ rules:
   - projects/status
   - proxycaches/status
   - registries/status
+  - registrycredentials/status
   verbs:
   - get
   - patch

@@ -18,13 +18,16 @@ package registry
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	registryv1alpha1 "github.com/unmango/thecluster-operator/api/registry/v1alpha1"
 	"github.com/unmango/thecluster-operator/internal/harbor"
@@ -79,4 +82,22 @@ func setReady(conditions *[]metav1.Condition, generation int64, status metav1.Co
 		Reason:             reason,
 		Message:            message,
 	})
+}
+
+// outcome records a reconcile's error, or available when there is none, on
+// the Ready condition and picks when to look again.
+func outcome(ctx context.Context, conditions *[]metav1.Condition, generation int64, result ctrl.Result, err error, available string) ctrl.Result {
+	var conflict errConflict
+	switch {
+	case errors.As(err, &conflict):
+		setReady(conditions, generation, metav1.ConditionFalse, "Conflict", err.Error())
+		return ctrl.Result{RequeueAfter: resync}
+	case err != nil:
+		logf.FromContext(ctx).Error(err, "Not ready")
+		setReady(conditions, generation, metav1.ConditionFalse, "Unavailable", err.Error())
+		return ctrl.Result{RequeueAfter: retry}
+	default:
+		setReady(conditions, generation, metav1.ConditionTrue, "Available", available)
+		return result
+	}
 }

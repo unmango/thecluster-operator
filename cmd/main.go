@@ -46,6 +46,7 @@ import (
 	corecontroller "github.com/unmango/thecluster-operator/internal/controller/core"
 	piacontroller "github.com/unmango/thecluster-operator/internal/controller/pia"
 	registrycontroller "github.com/unmango/thecluster-operator/internal/controller/registry"
+	"github.com/unmango/thecluster-operator/internal/secretstore"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -76,6 +77,7 @@ func main() {
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
 	var runners runnerFlags
+	var harborVaultURL string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -94,6 +96,9 @@ func main() {
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	runners.bind(flag.CommandLine)
+	flag.StringVar(&harborVaultURL, "harbor-vault-url", "",
+		"Azure Key Vault that RegistryCredential secrets are written to, authenticated from the AZURE_* environment. "+
+			"Without it, RegistryCredentials report that they cannot be issued.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -276,6 +281,21 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "registry-project")
+		os.Exit(1)
+	}
+	var harborVault secretstore.Writer
+	if harborVaultURL != "" {
+		if harborVault, err = secretstore.NewKeyVault(harborVaultURL); err != nil {
+			setupLog.Error(err, "Invalid Harbor vault")
+			os.Exit(1)
+		}
+	}
+	if err := (&registrycontroller.RegistryCredentialReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Store:  harborVault,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "Failed to create controller", "controller", "registry-registrycredential")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
