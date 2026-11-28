@@ -124,7 +124,7 @@ var _ = Describe("RegistryCredential Controller", func() {
 		Expect(actions(robot)).To(ConsistOf("pull", "push"))
 		Expect(robot.Duration).To(Equal(int64(90)))
 
-		Expect(storedLogin("default-harbor-mve-push")).To(Equal(map[string]string{
+		Expect(storedLogin("default--harbor-mve-push")).To(Equal(map[string]string{
 			"registry": "harbor.example.com", "username": robot.Name, "password": robot.Secret,
 		}))
 		Expect(rc.Status.Robot.ID).To(Equal(robot.ID))
@@ -156,13 +156,15 @@ var _ = Describe("RegistryCredential Controller", func() {
 		Expect(cond.Message).To(ContainSubstring("vault unreachable"))
 		Expect(rc.Status.Robot).NotTo(BeNil())
 		Expect(rc.Status.Robot.Written).To(BeNil())
+		id := rc.Status.Robot.ID
 
 		store.Fail = nil
 		rc = reconcileCredential(ctx, rc)
 		Expect(meta.IsStatusConditionTrue(rc.Status.Conditions, TypeReady)).To(BeTrue())
 		robot := fake.Robot("robot$mve+mve-push-1")
-		Expect(robot.ID).To(Equal(rc.Status.Robot.ID))
-		Expect(storedLogin("default-harbor-mve-push")).To(HaveKeyWithValue("password", robot.Secret))
+		Expect(robot.ID).To(Equal(id))
+		Expect(rc.Status.Robot.ID).To(Equal(id))
+		Expect(storedLogin("default--harbor-mve-push")).To(HaveKeyWithValue("password", robot.Secret))
 	})
 
 	It("deletes the robot and the stored login on deletion", func(ctx SpecContext) {
@@ -172,7 +174,7 @@ var _ = Describe("RegistryCredential Controller", func() {
 		Expect(k8sClient.Delete(ctx, rc)).To(Succeed())
 		Expect(reconcileCredential(ctx, rc)).To(BeNil())
 		Expect(fake.Robots).To(BeEmpty())
-		_, ok := store.Get("default-harbor-mve-push")
+		_, ok := store.Get("default--harbor-mve-push")
 		Expect(ok).To(BeFalse())
 	})
 })

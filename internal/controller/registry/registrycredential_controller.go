@@ -99,6 +99,9 @@ func (r *RegistryCredentialReconciler) ensure(ctx context.Context, rc *registryv
 	if project.Status.ProjectID == 0 {
 		return ctrl.Result{}, fmt.Errorf("project %s has not been created yet", project.Name)
 	}
+	if reg.Status.Host == "" {
+		return ctrl.Result{}, fmt.Errorf("registry %s has no host yet", reg.Name)
+	}
 
 	robot := rc.Status.Robot
 	if robot != nil {
@@ -180,17 +183,26 @@ func (r *RegistryCredentialReconciler) finalize(ctx context.Context, rc *registr
 		return nil
 	}
 
-	if robot := rc.Status.Robot; robot != nil {
-		_, _, hc, err := r.harbor(ctx, rc)
-		switch {
-		case apierrors.IsNotFound(err):
-			// With the Project or Registry gone there is no way to reach
-			// Harbor; the robot still expires on its own.
-			logf.FromContext(ctx).Info("Cannot reach Harbor, leaving the robot to expire", "robot", robot.Name)
-		case err != nil:
-			return err
-		default:
-			if err := hc.DeleteRobot(ctx, robot.ID); err != nil {
+	project, _, hc, err := r.harbor(ctx, rc)
+	switch {
+	case apierrors.IsNotFound(err):
+		// With the Project or Registry gone there is no way to reach
+		// Harbor; any robot still expires on its own.
+		logf.FromContext(ctx).Info("Cannot reach Harbor, leaving the robot to expire")
+	case err != nil:
+		return err
+	default:
+		var id int64
+		if rc.Status.Robot != nil {
+			id = rc.Status.Robot.ID
+		} else if project.Status.ProjectID != 0 {
+			// A robot created before its status was saved is found by name.
+			if id, err = hc.FindRobot(ctx, project.Status.ProjectID, rc.Name+"-1"); err != nil {
+				return err
+			}
+		}
+		if id != 0 {
+			if err := hc.DeleteRobot(ctx, id); err != nil {
 				return err
 			}
 		}
@@ -208,7 +220,7 @@ func (r *RegistryCredentialReconciler) finalize(ctx context.Context, rc *registr
 // vaultName is the credential's secret name in the store, prefixed with its
 // namespace so that no namespace can overwrite or delete another's secret.
 func vaultName(rc *registryv1alpha1.RegistryCredential) string {
-	return rc.Namespace + "-" + rc.Spec.SecretName
+	return rc.Namespace + "--" + rc.Spec.SecretName
 }
 
 func (r *RegistryCredentialReconciler) harbor(ctx context.Context, rc *registryv1alpha1.RegistryCredential) (*registryv1alpha1.Project, *registryv1alpha1.Registry, *harbor.Client, error) {

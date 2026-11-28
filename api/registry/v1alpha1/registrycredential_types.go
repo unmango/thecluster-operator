@@ -45,9 +45,12 @@ type RegistryCredentialSpec struct {
 
 	// SecretName names the secret the operator writes in its secret store,
 	// holding the registry host, username and password as JSON. The stored
-	// name is prefixed with the namespace, as <namespace>-<secretName>, so
-	// one namespace cannot overwrite another's.
-	// +kubebuilder:validation:Pattern=`^[0-9a-zA-Z-]{1,100}$`
+	// name is prefixed with the namespace, as <namespace>--<secretName>,
+	// so one namespace cannot overwrite another's. A secretName holds no
+	// "--" and neither starts nor ends with "-", which keeps that split
+	// unambiguous, and at 62 characters the whole name fits Key Vault's 127.
+	// +kubebuilder:validation:Pattern=`^[0-9a-zA-Z]+(-[0-9a-zA-Z]+)*$`
+	// +kubebuilder:validation:MaxLength=62
 	SecretName string `json:"secretName"`
 }
 
