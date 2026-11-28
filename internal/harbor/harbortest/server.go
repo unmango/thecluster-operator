@@ -43,6 +43,9 @@ type Server struct {
 	// Repositories maps a project name to its repository names, which
 	// include the project prefix as Harbor's API returns them.
 	Repositories map[string][]string
+	// Robots are keyed by ID. Secret holds the current secret, which Harbor
+	// itself would never return after creation.
+	Robots map[int64]*harbor.Robot
 
 	nextID int64
 }
@@ -55,6 +58,7 @@ func New(password string) *Server {
 		Registries:   map[int64]*harbor.Registry{},
 		Projects:     map[string]*harbor.Project{},
 		Repositories: map[string][]string{},
+		Robots:       map[int64]*harbor.Robot{},
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v2.0/users/current", s.ok)
@@ -69,6 +73,11 @@ func New(password string) *Server {
 	mux.HandleFunc("DELETE /api/v2.0/projects/{name}", s.deleteProject)
 	mux.HandleFunc("GET /api/v2.0/projects/{name}/repositories", s.listRepositories)
 	mux.HandleFunc("DELETE /api/v2.0/projects/{name}/repositories/{repo}", s.deleteRepository)
+	mux.HandleFunc("GET /api/v2.0/robots", s.listRobots)
+	mux.HandleFunc("POST /api/v2.0/robots", s.createRobot)
+	mux.HandleFunc("GET /api/v2.0/robots/{id}", s.getRobot)
+	mux.HandleFunc("PATCH /api/v2.0/robots/{id}", s.refreshRobot)
+	mux.HandleFunc("DELETE /api/v2.0/robots/{id}", s.deleteRobot)
 
 	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if user, pass, ok := r.BasicAuth(); !ok || user != "admin" || pass != s.Password {
@@ -102,6 +111,19 @@ func (s *Server) Project(name string) *harbor.Project {
 	if p, ok := s.Projects[name]; ok {
 		c := *p
 		return &c
+	}
+	return nil
+}
+
+// Robot returns the robot whose full name is name, or nil.
+func (s *Server) Robot(name string) *harbor.Robot {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+	for _, r := range s.Robots {
+		if r.Name == name {
+			c := *r
+			return &c
+		}
 	}
 	return nil
 }
@@ -278,6 +300,84 @@ func (s *Server) deleteRepository(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	fail(w, http.StatusNotFound, "not found")
+}
+
+// listRobots lists a project's robots for q=Level=project,ProjectID=<id>,
+// and otherwise only system robots, which the fake has none of.
+func (s *Server) listRobots(w http.ResponseWriter, r *http.Request) {
+	query := map[string]string{}
+	for _, kv := range strings.Split(r.URL.Query().Get("q"), ",") {
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			query[k] = v
+		}
+	}
+	out := []harbor.Robot{}
+	for _, robot := range s.Robots {
+		p := s.Projects[robot.Permissions[0].Namespace]
+		if query["Level"] == "project" && p != nil && strconv.FormatInt(p.ProjectID, 10) == query["ProjectID"] {
+			c := *robot
+			c.Secret = ""
+			out = append(out, c)
+		}
+	}
+	reply(w, out)
+}
+
+func (s *Server) createRobot(w http.ResponseWriter, r *http.Request) {
+	robot := &harbor.Robot{}
+	if !decode(w, r, robot) {
+		return
+	}
+	if robot.Level != "project" || len(robot.Permissions) != 1 {
+		fail(w, http.StatusBadRequest, "only single-project robots are faked")
+		return
+	}
+	robot.Name = "robot$" + robot.Permissions[0].Namespace + "+" + robot.Name
+	for _, existing := range s.Robots {
+		if existing.Name == robot.Name {
+			fail(w, http.StatusConflict, "conflict")
+			return
+		}
+	}
+	s.nextID++
+	robot.ID = s.nextID
+	robot.Secret = "secret-" + strconv.FormatInt(s.nextID, 10)
+	s.Robots[robot.ID] = robot
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": robot.ID, "name": robot.Name, "secret": robot.Secret})
+}
+
+func (s *Server) robot(w http.ResponseWriter, r *http.Request) *harbor.Robot {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	robot, ok := s.Robots[id]
+	if !ok {
+		fail(w, http.StatusNotFound, "not found")
+	}
+	return robot
+}
+
+func (s *Server) getRobot(w http.ResponseWriter, r *http.Request) {
+	if robot := s.robot(w, r); robot != nil {
+		c := *robot
+		c.Secret = ""
+		reply(w, c)
+	}
+}
+
+func (s *Server) refreshRobot(w http.ResponseWriter, r *http.Request) {
+	if robot := s.robot(w, r); robot != nil {
+		s.nextID++
+		robot.Secret = "secret-" + strconv.FormatInt(s.nextID, 10)
+		reply(w, map[string]string{"secret": robot.Secret})
+	}
+}
+
+func (s *Server) deleteRobot(w http.ResponseWriter, r *http.Request) {
+	if robot := s.robot(w, r); robot != nil {
+		delete(s.Robots, robot.ID)
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {

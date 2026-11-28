@@ -22,6 +22,7 @@ package harbor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -34,6 +35,7 @@ import (
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/project"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/registry"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/repository"
+	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/robot"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/systeminfo"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/client/user"
 	"github.com/goharbor/go-client/pkg/sdk/v2.0/models"
@@ -62,15 +64,20 @@ func New(baseURL, username, password string) (*Client, error) {
 }
 
 // IsNotFound reports whether err is a 404 from Harbor.
-func IsNotFound(err error) bool {
-	// Operations that document a 404 return a typed response; the rest
+func IsNotFound(err error) bool { return hasStatus(err, http.StatusNotFound) }
+
+// IsConflict reports whether err is a 409 from Harbor.
+func IsConflict(err error) bool { return hasStatus(err, http.StatusConflict) }
+
+func hasStatus(err error, code int) bool {
+	// Operations that document a status return a typed response; the rest
 	// return a runtime.APIError.
 	var coded interface{ IsCode(int) bool }
 	if errors.As(err, &coded) {
-		return coded.IsCode(http.StatusNotFound)
+		return coded.IsCode(code)
 	}
 	var api *runtime.APIError
-	return errors.As(err, &api) && api.Code == http.StatusNotFound
+	return errors.As(err, &api) && api.Code == code
 }
 
 // Credential authenticates Harbor to an upstream registry.
@@ -98,6 +105,31 @@ type Project struct {
 	Name       string            `json:"name"`
 	RegistryID int64             `json:"registry_id"`
 	Metadata   map[string]string `json:"metadata"`
+}
+
+// Robot is a Harbor robot account. Name is the full username Harbor
+// assigns, robot$<project>+<name> for a project robot, and Secret is only
+// filled on creation or refresh.
+type Robot struct {
+	ID          int64             `json:"id"`
+	Name        string            `json:"name"`
+	Level       string            `json:"level"`
+	Duration    int64             `json:"duration"`
+	Permissions []RobotPermission `json:"permissions"`
+	Secret      string            `json:"secret,omitempty"`
+}
+
+// RobotPermission grants a robot actions on resources in one project.
+type RobotPermission struct {
+	Kind      string        `json:"kind"`
+	Namespace string        `json:"namespace"`
+	Access    []RobotAccess `json:"access"`
+}
+
+// RobotAccess is one action on one kind of resource.
+type RobotAccess struct {
+	Resource string `json:"resource"`
+	Action   string `json:"action"`
 }
 
 // SystemInfo is the subset of /systeminfo the controllers read.
@@ -283,6 +315,82 @@ func (c *Client) DeleteEmptyProject(ctx context.Context, name string) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	_, err := c.api.Project.DeleteProject(ctx, params)
+	if IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+// CreateRobot creates a robot and returns it with its ID, full name and secret.
+func (c *Client) CreateRobot(ctx context.Context, r *Robot) (*Robot, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	m := &models.RobotCreate{Name: r.Name, Level: r.Level, Duration: r.Duration}
+	for _, p := range r.Permissions {
+		perm := &models.RobotPermission{Kind: p.Kind, Namespace: p.Namespace}
+		for _, a := range p.Access {
+			perm.Access = append(perm.Access, &models.Access{Resource: a.Resource, Action: a.Action})
+		}
+		m.Permissions = append(m.Permissions, perm)
+	}
+	resp, err := c.api.Robot.CreateRobot(ctx, robot.NewCreateRobotParams().WithRobot(m))
+	if err != nil {
+		return nil, err
+	}
+	out := *r
+	out.ID, out.Name, out.Secret = resp.Payload.ID, resp.Payload.Name, resp.Payload.Secret
+	return &out, nil
+}
+
+// RobotExists reports whether the robot with id is still in Harbor.
+func (c *Client) RobotExists(ctx context.Context, id int64) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	_, err := c.api.Robot.GetRobotByID(ctx, robot.NewGetRobotByIDParams().WithRobotID(id))
+	if IsNotFound(err) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// FindRobot returns the id of the robot called name in the project with
+// projectID, or 0. Harbor lists only system robots unless the query names a
+// project, and stores names without its robot$ prefix, so this lists the
+// project's robots and matches the name's end.
+func (c *Client) FindRobot(ctx context.Context, projectID int64, name string) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	q := fmt.Sprintf("Level=project,ProjectID=%d", projectID)
+	pageSize := int64(100)
+	resp, err := c.api.Robot.ListRobot(ctx, robot.NewListRobotParams().WithQ(&q).WithPageSize(&pageSize))
+	if err != nil {
+		return 0, err
+	}
+	for _, r := range resp.Payload {
+		if strings.HasSuffix(r.Name, "+"+name) {
+			return r.ID, nil
+		}
+	}
+	return 0, nil
+}
+
+// RefreshRobotSecret replaces a robot's secret and returns the new one.
+func (c *Client) RefreshRobotSecret(ctx context.Context, id int64) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	params := robot.NewRefreshSecParams().WithRobotID(id).WithRobotSec(&models.RobotSec{})
+	resp, err := c.api.Robot.RefreshSec(ctx, params)
+	if err != nil {
+		return "", err
+	}
+	return resp.Payload.Secret, nil
+}
+
+// DeleteRobot deletes a robot; one already gone is not an error.
+func (c *Client) DeleteRobot(ctx context.Context, id int64) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	_, err := c.api.Robot.DeleteRobot(ctx, robot.NewDeleteRobotParams().WithRobotID(id))
 	if IsNotFound(err) {
 		return nil
 	}
