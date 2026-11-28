@@ -56,13 +56,21 @@ func NewKeyVault(url string) (*KeyVault, error) {
 	return &KeyVault{client: client}, nil
 }
 
+// Set writes the secret. A name held by a soft-deleted secret is refused
+// until that secret is recovered or purged, so Set recovers it and still
+// fails, leaving the retry to overwrite it once recovery finishes.
 func (k *KeyVault) Set(ctx context.Context, name, value string) error {
 	_, err := k.client.SetSecret(ctx, name, azsecrets.SetSecretParameters{Value: &value}, nil)
+	var resp *azcore.ResponseError
+	if errors.As(err, &resp) && resp.StatusCode == http.StatusConflict {
+		_, rerr := k.client.RecoverDeletedSecret(ctx, name, nil)
+		return errors.Join(err, rerr)
+	}
 	return err
 }
 
 // Delete soft-deletes the secret, so the vault keeps it for its retention
-// period and the same name cannot be set again until it is purged.
+// period.
 func (k *KeyVault) Delete(ctx context.Context, name string) error {
 	_, err := k.client.DeleteSecret(ctx, name, nil)
 	var resp *azcore.ResponseError

@@ -25,7 +25,10 @@ import (
 // ProjectSpec defines the desired state of Project.
 type ProjectSpec struct {
 	// RegistryRef names the Registry, in the same namespace, that holds
-	// this project.
+	// this project. It is immutable, since the recorded project and robot
+	// ids mean nothing on another backend.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="registryRef is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.name != ''",message="name is required"
 	RegistryRef corev1.LocalObjectReference `json:"registryRef"`
 }
 
@@ -61,7 +64,8 @@ type Project struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ProjectSpec   `json:"spec,omitempty"`
+	// +required
+	Spec   ProjectSpec   `json:"spec"`
 	Status ProjectStatus `json:"status,omitempty"`
 }
 

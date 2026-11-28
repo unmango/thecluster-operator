@@ -18,11 +18,9 @@ package registry
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -72,19 +70,8 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 // report records the outcome of a reconcile on the Ready condition.
 func (r *ProjectReconciler) report(ctx context.Context, p *registryv1alpha1.Project, result ctrl.Result, err error) (ctrl.Result, error) {
-	var conflict errConflict
-	switch {
-	case errors.As(err, &conflict):
-		setReady(&p.Status.Conditions, p.Generation, metav1.ConditionFalse, "Conflict", err.Error())
-		result = ctrl.Result{RequeueAfter: resync}
-	case err != nil:
-		logf.FromContext(ctx).Error(err, "Project is not ready")
-		setReady(&p.Status.Conditions, p.Generation, metav1.ConditionFalse, "Unavailable", err.Error())
-		result = ctrl.Result{RequeueAfter: retry}
-	default:
-		setReady(&p.Status.Conditions, p.Generation, metav1.ConditionTrue, "Available",
-			fmt.Sprintf("Harbor holds private project %s", p.Name))
-	}
+	result = outcome(ctx, &p.Status.Conditions, p.Generation, result, err,
+		fmt.Sprintf("Harbor holds private project %s", p.Name))
 	return result, r.Status().Update(ctx, p)
 }
 

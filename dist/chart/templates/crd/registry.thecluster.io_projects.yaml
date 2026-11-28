@@ -61,7 +61,8 @@ spec:
               registryRef:
                 description: |-
                   RegistryRef names the Registry, in the same namespace, that holds
-                  this project.
+                  this project. It is immutable, since the recorded project and robot
+                  ids mean nothing on another backend.
                 properties:
                   name:
                     default: ""
@@ -74,6 +75,11 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: registryRef is immutable
+                  rule: self == oldSelf
+                - message: name is required
+                  rule: self.name != ''
             required:
             - registryRef
             type: object
@@ -152,6 +158,8 @@ spec:
                 format: int64
                 type: integer
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

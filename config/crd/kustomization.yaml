@@ -9,6 +9,7 @@ resources:
 - bases/actions.thecluster.io_repositories.yaml
 - bases/actions.thecluster.io_users.yaml
 - bases/registry.thecluster.io_projects.yaml
+- bases/registry.thecluster.io_registrycredentials.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
