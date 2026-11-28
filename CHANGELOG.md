@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/unmango/thecluster-operator/compare/v0.1.4...v0.1.5) (2026-11-28)
+
+
+### Continuous Integration
+
+* run the kind and buildx jobs on hosted runners ([#178](https://github.com/unmango/thecluster-operator/issues/178)) ([e5e9e35](https://github.com/unmango/thecluster-operator/commit/e5e9e352f9e210c4bd34df0da02b538e9c8b5fea))
+
 ## [0.1.4](https://github.com/unmango/thecluster-operator/compare/v0.1.3...v0.1.4) (2026-11-28)
 
 
