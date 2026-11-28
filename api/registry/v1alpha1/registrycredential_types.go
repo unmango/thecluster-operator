@@ -48,8 +48,9 @@ type RegistryCredentialSpec struct {
 	// name is prefixed with the namespace, as <namespace>--<secretName>,
 	// so one namespace cannot overwrite another's. A secretName holds no
 	// "--" and neither starts nor ends with "-", which keeps that split
-	// unambiguous, and at 62 characters the whole name fits Key Vault's 127.
-	// +kubebuilder:validation:Pattern=`^[0-9a-zA-Z]+(-[0-9a-zA-Z]+)*$`
+	// unambiguous. It is lowercase because Key Vault compares names without
+	// case, and at 62 characters the whole name fits Key Vault's 127.
+	// +kubebuilder:validation:Pattern=`^[0-9a-z]+(-[0-9a-z]+)*$`
 	// +kubebuilder:validation:MaxLength=62
 	SecretName string `json:"secretName"`
 }

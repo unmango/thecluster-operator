@@ -106,11 +106,11 @@ func (r *RegistryCredentialReconciler) ensure(ctx context.Context, rc *registryv
 
 	robot := rc.Status.Robot
 	if robot != nil {
-		exists, err := hc.RobotExists(ctx, robot.ID)
+		own, err := findOwn(ctx, hc, rc, project)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		if !exists {
+		if own == nil {
 			robot, rc.Status.Robot = nil, nil
 		}
 	}
@@ -164,11 +164,19 @@ func wantRobot(rc *registryv1alpha1.RegistryCredential, project *registryv1alpha
 	return want
 }
 
-// findOwn returns the credential's robot if Harbor holds it, or nil. A robot
-// of the same name without the credential's mark and permissions counts as
-// absent, so its secret is never handed out and it is never deleted.
-func findOwn(ctx context.Context, hc *harbor.Client, projectID int64, want *harbor.Robot) (*harbor.Robot, error) {
-	found, err := hc.FindRobot(ctx, projectID, want.Name)
+// findOwn returns the credential's robot if Harbor holds it, or nil. It looks
+// up the recorded robot by ID, or one never recorded by name. A robot without
+// the credential's mark and permissions counts as absent, so its secret is
+// never handed out and it is never deleted, even after the backend changes.
+func findOwn(ctx context.Context, hc *harbor.Client, rc *registryv1alpha1.RegistryCredential, project *registryv1alpha1.Project) (*harbor.Robot, error) {
+	want := wantRobot(rc, project)
+	var found *harbor.Robot
+	var err error
+	if rc.Status.Robot != nil {
+		found, err = hc.GetRobot(ctx, rc.Status.Robot.ID)
+	} else {
+		found, err = hc.FindRobot(ctx, project.Status.ProjectID, want.Name)
+	}
 	if err != nil || found == nil || found.Description != want.Description || !reflect.DeepEqual(found.Permissions, want.Permissions) {
 		return nil, err
 	}
@@ -181,7 +189,7 @@ func (r *RegistryCredentialReconciler) createRobot(ctx context.Context, hc *harb
 	want := wantRobot(rc, project)
 	created, err := hc.CreateRobot(ctx, want)
 	if harbor.IsConflict(err) {
-		if created, err = findOwn(ctx, hc, project.Status.ProjectID, want); err == nil && created == nil {
+		if created, err = findOwn(ctx, hc, rc, project); err == nil && created == nil {
 			err = fmt.Errorf("robot %s exists but was not issued to this credential", want.Name)
 		}
 		if err == nil {
@@ -212,24 +220,13 @@ func (r *RegistryCredentialReconciler) finalize(ctx context.Context, rc *registr
 		logf.FromContext(ctx).Info("Cannot reach Harbor, leaving the robot to expire")
 	case err != nil:
 		return err
-	default:
-		var id int64
-		if rc.Status.Robot != nil {
-			id = rc.Status.Robot.ID
-		} else if project.Status.ProjectID != 0 {
-			// A robot created before its status was saved is found by name.
-			own, err := findOwn(ctx, hc, project.Status.ProjectID, wantRobot(rc, project))
-			if err != nil {
-				return err
-			}
-			if own != nil {
-				id = own.ID
-			}
+	case rc.Status.Robot != nil || project.Status.ProjectID != 0:
+		own, err := findOwn(ctx, hc, rc, project)
+		if err == nil && own != nil {
+			err = hc.DeleteRobot(ctx, own.ID)
 		}
-		if id != 0 {
-			if err := hc.DeleteRobot(ctx, id); err != nil {
-				return err
-			}
+		if err != nil {
+			return err
 		}
 	}
 	if r.Store != nil {

@@ -343,15 +343,29 @@ func (c *Client) CreateRobot(ctx context.Context, r *Robot) (*Robot, error) {
 	return &out, nil
 }
 
-// RobotExists reports whether the robot with id is still in Harbor.
-func (c *Client) RobotExists(ctx context.Context, id int64) (bool, error) {
+// GetRobot returns the robot with id, or nil if Harbor has none.
+func (c *Client) GetRobot(ctx context.Context, id int64) (*Robot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	_, err := c.api.Robot.GetRobotByID(ctx, robot.NewGetRobotByIDParams().WithRobotID(id))
+	resp, err := c.api.Robot.GetRobotByID(ctx, robot.NewGetRobotByIDParams().WithRobotID(id))
 	if IsNotFound(err) {
-		return false, nil
+		return nil, nil
+	} else if err != nil {
+		return nil, err
 	}
-	return err == nil, err
+	return fromModel(resp.Payload), nil
+}
+
+func fromModel(r *models.Robot) *Robot {
+	out := &Robot{ID: r.ID, Name: r.Name, Level: r.Level, Description: r.Description}
+	for _, p := range r.Permissions {
+		perm := RobotPermission{Kind: p.Kind, Namespace: p.Namespace}
+		for _, a := range p.Access {
+			perm.Access = append(perm.Access, RobotAccess{Resource: a.Resource, Action: a.Action})
+		}
+		out.Permissions = append(out.Permissions, perm)
+	}
+	return out
 }
 
 // FindRobot returns the robot called name in the project with projectID, or
@@ -368,18 +382,9 @@ func (c *Client) FindRobot(ctx context.Context, projectID int64, name string) (*
 		return nil, err
 	}
 	for _, r := range resp.Payload {
-		if !strings.HasSuffix(r.Name, "+"+name) {
-			continue
+		if strings.HasSuffix(r.Name, "+"+name) {
+			return fromModel(r), nil
 		}
-		out := &Robot{ID: r.ID, Name: r.Name, Level: r.Level, Description: r.Description}
-		for _, p := range r.Permissions {
-			perm := RobotPermission{Kind: p.Kind, Namespace: p.Namespace}
-			for _, a := range p.Access {
-				perm.Access = append(perm.Access, RobotAccess{Resource: a.Resource, Action: a.Action})
-			}
-			out.Permissions = append(out.Permissions, perm)
-		}
-		return out, nil
 	}
 	return nil, nil
 }
