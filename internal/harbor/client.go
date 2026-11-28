@@ -326,7 +326,7 @@ func (c *Client) DeleteEmptyProject(ctx context.Context, name string) error {
 func (c *Client) CreateRobot(ctx context.Context, r *Robot) (*Robot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	m := &models.RobotCreate{Name: r.Name, Level: r.Level, Description: r.Description}
+	m := &models.RobotCreate{Name: r.Name, Level: r.Level, Duration: r.Duration, Description: r.Description}
 	for _, p := range r.Permissions {
 		perm := &models.RobotPermission{Kind: p.Kind, Namespace: p.Namespace}
 		for _, a := range p.Access {
