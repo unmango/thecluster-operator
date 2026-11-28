@@ -115,6 +115,7 @@ type Robot struct {
 	Name        string            `json:"name"`
 	Level       string            `json:"level"`
 	Duration    int64             `json:"duration"`
+	Description string            `json:"description,omitempty"`
 	Permissions []RobotPermission `json:"permissions"`
 	Secret      string            `json:"secret,omitempty"`
 }
@@ -325,7 +326,7 @@ func (c *Client) DeleteEmptyProject(ctx context.Context, name string) error {
 func (c *Client) CreateRobot(ctx context.Context, r *Robot) (*Robot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	m := &models.RobotCreate{Name: r.Name, Level: r.Level, Duration: r.Duration}
+	m := &models.RobotCreate{Name: r.Name, Level: r.Level, Description: r.Description}
 	for _, p := range r.Permissions {
 		perm := &models.RobotPermission{Kind: p.Kind, Namespace: p.Namespace}
 		for _, a := range p.Access {
@@ -353,25 +354,34 @@ func (c *Client) RobotExists(ctx context.Context, id int64) (bool, error) {
 	return err == nil, err
 }
 
-// FindRobot returns the id of the robot called name in the project with
-// projectID, or 0. Harbor lists only system robots unless the query names a
+// FindRobot returns the robot called name in the project with projectID, or
+// nil. Harbor lists only system robots unless the query names a
 // project, and stores names without its robot$ prefix, so this lists the
 // project's robots and matches the name's end.
-func (c *Client) FindRobot(ctx context.Context, projectID int64, name string) (int64, error) {
+func (c *Client) FindRobot(ctx context.Context, projectID int64, name string) (*Robot, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	q := fmt.Sprintf("Level=project,ProjectID=%d", projectID)
 	pageSize := int64(100)
 	resp, err := c.api.Robot.ListRobot(ctx, robot.NewListRobotParams().WithQ(&q).WithPageSize(&pageSize))
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	for _, r := range resp.Payload {
-		if strings.HasSuffix(r.Name, "+"+name) {
-			return r.ID, nil
+		if !strings.HasSuffix(r.Name, "+"+name) {
+			continue
 		}
+		out := &Robot{ID: r.ID, Name: r.Name, Level: r.Level, Description: r.Description}
+		for _, p := range r.Permissions {
+			perm := RobotPermission{Kind: p.Kind, Namespace: p.Namespace}
+			for _, a := range p.Access {
+				perm.Access = append(perm.Access, RobotAccess{Resource: a.Resource, Action: a.Action})
+			}
+			out.Permissions = append(out.Permissions, perm)
+		}
+		return out, nil
 	}
-	return 0, nil
+	return nil, nil
 }
 
 // RefreshRobotSecret replaces a robot's secret and returns the new one.

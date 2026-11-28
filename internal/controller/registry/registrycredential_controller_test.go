@@ -167,6 +167,29 @@ var _ = Describe("RegistryCredential Controller", func() {
 		Expect(storedLogin("default--harbor-mve-push")).To(HaveKeyWithValue("password", robot.Secret))
 	})
 
+	It("refuses a same-name robot it did not issue", func(ctx SpecContext) {
+		fake.Mu.Lock()
+		fake.Robots[999] = &harbor.Robot{
+			ID: 999, Name: "robot$mve+mve-pull-1", Level: "project", Secret: "planted",
+			Permissions: []harbor.RobotPermission{{Kind: "project", Namespace: "mve", Access: []harbor.RobotAccess{
+				{Resource: "repository", Action: "pull"}, {Resource: "repository", Action: "push"},
+			}}},
+		}
+		fake.Mu.Unlock()
+
+		rc := reconcileCredential(ctx, newCredential(ctx, "default", registryv1alpha1.AccessPull))
+		cond := meta.FindStatusCondition(rc.Status.Conditions, TypeReady)
+		Expect(cond.Status).To(Equal(metav1.ConditionFalse))
+		Expect(cond.Message).To(ContainSubstring("not issued to this credential"))
+		Expect(fake.Robot("robot$mve+mve-pull-1").Secret).To(Equal("planted"))
+		_, ok := store.Get("default--harbor-mve-pull")
+		Expect(ok).To(BeFalse())
+
+		Expect(k8sClient.Delete(ctx, rc)).To(Succeed())
+		Expect(reconcileCredential(ctx, rc)).To(BeNil())
+		Expect(fake.Robot("robot$mve+mve-pull-1")).NotTo(BeNil())
+	})
+
 	It("deletes the robot and the stored login on deletion", func(ctx SpecContext) {
 		rc := newCredential(ctx, "default", registryv1alpha1.AccessPush)
 		reconcileCredential(ctx, rc)

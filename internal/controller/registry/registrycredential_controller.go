@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -143,9 +144,9 @@ func (r *RegistryCredentialReconciler) ensure(ctx context.Context, rc *registryv
 	return ctrl.Result{RequeueAfter: resync}, nil
 }
 
-// createRobot creates the credential's robot, or takes back one an earlier
-// reconcile created without recording it, replacing its unknown secret.
-func (r *RegistryCredentialReconciler) createRobot(ctx context.Context, hc *harbor.Client, rc *registryv1alpha1.RegistryCredential, project *registryv1alpha1.Project) (*registryv1alpha1.Robot, string, error) {
+// wantRobot is the robot a credential is issued. Its description carries the
+// credential's UID, which marks it as this credential's own.
+func wantRobot(rc *registryv1alpha1.RegistryCredential, project *registryv1alpha1.Project) *harbor.Robot {
 	actions := []string{"pull"}
 	if rc.Spec.Access == registryv1alpha1.AccessPush {
 		actions = append(actions, "push")
@@ -154,16 +155,36 @@ func (r *RegistryCredentialReconciler) createRobot(ctx context.Context, hc *harb
 		Name:        rc.Name + "-1",
 		Level:       "project",
 		Duration:    int64(robotLifetime / (24 * time.Hour)),
+		Description: "registrycredential " + string(rc.UID),
 		Permissions: []harbor.RobotPermission{{Kind: "project", Namespace: project.Name}},
 	}
 	for _, a := range actions {
 		want.Permissions[0].Access = append(want.Permissions[0].Access, harbor.RobotAccess{Resource: "repository", Action: a})
 	}
+	return want
+}
 
+// findOwn returns the credential's robot if Harbor holds it, or nil. A robot
+// of the same name without the credential's mark and permissions counts as
+// absent, so its secret is never handed out and it is never deleted.
+func findOwn(ctx context.Context, hc *harbor.Client, projectID int64, want *harbor.Robot) (*harbor.Robot, error) {
+	found, err := hc.FindRobot(ctx, projectID, want.Name)
+	if err != nil || found == nil || found.Description != want.Description || !reflect.DeepEqual(found.Permissions, want.Permissions) {
+		return nil, err
+	}
+	return found, nil
+}
+
+// createRobot creates the credential's robot, or takes back one an earlier
+// reconcile created without recording it, replacing its unknown secret.
+func (r *RegistryCredentialReconciler) createRobot(ctx context.Context, hc *harbor.Client, rc *registryv1alpha1.RegistryCredential, project *registryv1alpha1.Project) (*registryv1alpha1.Robot, string, error) {
+	want := wantRobot(rc, project)
 	created, err := hc.CreateRobot(ctx, want)
 	if harbor.IsConflict(err) {
-		created = &harbor.Robot{Name: "robot$" + project.Name + "+" + want.Name}
-		if created.ID, err = hc.FindRobot(ctx, project.Status.ProjectID, want.Name); err == nil {
+		if created, err = findOwn(ctx, hc, project.Status.ProjectID, want); err == nil && created == nil {
+			err = fmt.Errorf("robot %s exists but was not issued to this credential", want.Name)
+		}
+		if err == nil {
 			created.Secret, err = hc.RefreshRobotSecret(ctx, created.ID)
 		}
 	}
@@ -197,8 +218,12 @@ func (r *RegistryCredentialReconciler) finalize(ctx context.Context, rc *registr
 			id = rc.Status.Robot.ID
 		} else if project.Status.ProjectID != 0 {
 			// A robot created before its status was saved is found by name.
-			if id, err = hc.FindRobot(ctx, project.Status.ProjectID, rc.Name+"-1"); err != nil {
+			own, err := findOwn(ctx, hc, project.Status.ProjectID, wantRobot(rc, project))
+			if err != nil {
 				return err
+			}
+			if own != nil {
+				id = own.ID
 			}
 		}
 		if id != 0 {
