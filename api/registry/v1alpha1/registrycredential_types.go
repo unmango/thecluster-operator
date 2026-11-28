@@ -42,17 +42,6 @@ type RegistryCredentialSpec struct {
 
 	// Access is pull, or push, which can also pull.
 	Access Access `json:"access"`
-
-	// SecretName names the secret the operator writes in its secret store,
-	// holding the registry host, username and password as JSON. The stored
-	// name is prefixed with the namespace, as <namespace>--<secretName>,
-	// so one namespace cannot overwrite another's. A secretName holds no
-	// "--" and neither starts nor ends with "-", which keeps that split
-	// unambiguous. It is lowercase because Key Vault compares names without
-	// case, and at 62 characters the whole name fits Key Vault's 127.
-	// +kubebuilder:validation:Pattern=`^[0-9a-z]+(-[0-9a-z]+)*$`
-	// +kubebuilder:validation:MaxLength=62
-	SecretName string `json:"secretName"`
 }
 
 // Robot is a backend login issued for a RegistryCredential.
@@ -89,10 +78,17 @@ type RegistryCredentialStatus struct {
 // +kubebuilder:printcolumn:name="Expires",type=date,JSONPath=`.status.robot.expiresAt`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:validation:XValidation:rule="self.metadata.name.matches('^[0-9a-z]+(-[0-9a-z]+)*$') && size(self.metadata.name) <= 62",message="name must be lowercase alphanumerics separated by single dashes, at most 62 characters"
 
 // RegistryCredential is a request for a login to one Project. The operator
 // issues a robot scoped to that project and writes its secret into the
 // secret store, where programs read it; nothing else hands it out.
+//
+// The stored secret is named <namespace>--<name>, holding the registry
+// host, username and password as JSON. A name holds no "--" and neither
+// starts nor ends with "-", which keeps that split unambiguous. It is
+// lowercase because Key Vault compares names without case, and at 62
+// characters the whole name fits Key Vault's 127.
 type RegistryCredential struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

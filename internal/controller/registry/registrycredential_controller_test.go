@@ -72,7 +72,6 @@ var _ = Describe("RegistryCredential Controller", func() {
 			Spec: registryv1alpha1.RegistryCredentialSpec{
 				ProjectRef: corev1.LocalObjectReference{Name: "mve"},
 				Access:     access,
-				SecretName: "harbor-mve-" + string(access),
 			},
 		}
 		Expect(k8sClient.Create(ctx, rc)).To(Succeed())
@@ -124,7 +123,7 @@ var _ = Describe("RegistryCredential Controller", func() {
 		Expect(actions(robot)).To(ConsistOf("pull", "push"))
 		Expect(robot.Duration).To(Equal(int64(90)))
 
-		Expect(storedLogin("default--harbor-mve-push")).To(Equal(map[string]string{
+		Expect(storedLogin("default--mve-push")).To(Equal(map[string]string{
 			"registry": "harbor.example.com", "username": robot.Name, "password": robot.Secret,
 		}))
 		Expect(rc.Status.Robot.ID).To(Equal(robot.ID))
@@ -164,7 +163,7 @@ var _ = Describe("RegistryCredential Controller", func() {
 		robot := fake.Robot("robot$mve+mve-push-1")
 		Expect(robot.ID).To(Equal(id))
 		Expect(rc.Status.Robot.ID).To(Equal(id))
-		Expect(storedLogin("default--harbor-mve-push")).To(HaveKeyWithValue("password", robot.Secret))
+		Expect(storedLogin("default--mve-push")).To(HaveKeyWithValue("password", robot.Secret))
 	})
 
 	It("refuses a same-name robot it did not issue", func(ctx SpecContext) {
@@ -182,7 +181,7 @@ var _ = Describe("RegistryCredential Controller", func() {
 		Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 		Expect(cond.Message).To(ContainSubstring("not issued to this credential"))
 		Expect(fake.Robot("robot$mve+mve-pull-1").Secret).To(Equal("planted"))
-		_, ok := store.Get("default--harbor-mve-pull")
+		_, ok := store.Get("default--mve-pull")
 		Expect(ok).To(BeFalse())
 
 		Expect(k8sClient.Delete(ctx, rc)).To(Succeed())
@@ -197,7 +196,7 @@ var _ = Describe("RegistryCredential Controller", func() {
 		Expect(k8sClient.Delete(ctx, rc)).To(Succeed())
 		Expect(reconcileCredential(ctx, rc)).To(BeNil())
 		Expect(fake.Robots).To(BeEmpty())
-		_, ok := store.Get("default--harbor-mve-push")
+		_, ok := store.Get("default--mve-push")
 		Expect(ok).To(BeFalse())
 	})
 })

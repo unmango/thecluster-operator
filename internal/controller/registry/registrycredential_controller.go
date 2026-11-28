@@ -242,7 +242,7 @@ func (r *RegistryCredentialReconciler) finalize(ctx context.Context, rc *registr
 // vaultName is the credential's secret name in the store, prefixed with its
 // namespace so that no namespace can overwrite or delete another's secret.
 func vaultName(rc *registryv1alpha1.RegistryCredential) string {
-	return rc.Namespace + "--" + rc.Spec.SecretName
+	return rc.Namespace + "--" + rc.Name
 }
 
 func (r *RegistryCredentialReconciler) harbor(ctx context.Context, rc *registryv1alpha1.RegistryCredential) (*registryv1alpha1.Project, *registryv1alpha1.Registry, *harbor.Client, error) {
