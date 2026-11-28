@@ -97,7 +97,8 @@ type RegistryCredential struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RegistryCredentialSpec   `json:"spec,omitempty"`
+	// +required
+	Spec   RegistryCredentialSpec   `json:"spec"`
 	Status RegistryCredentialStatus `json:"status,omitempty"`
 }
 

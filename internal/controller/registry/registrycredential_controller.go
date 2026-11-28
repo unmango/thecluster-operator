@@ -214,7 +214,7 @@ func (r *RegistryCredentialReconciler) finalize(ctx context.Context, rc *registr
 
 	project, _, hc, err := r.harbor(ctx, rc)
 	switch {
-	case apierrors.IsNotFound(err):
+	case errors.Is(err, errGone):
 		// With the Project or Registry gone there is no way to reach
 		// Harbor; any robot still expires on its own.
 		logf.FromContext(ctx).Info("Cannot reach Harbor, leaving the robot to expire")
@@ -248,14 +248,25 @@ func vaultName(rc *registryv1alpha1.RegistryCredential) string {
 func (r *RegistryCredentialReconciler) harbor(ctx context.Context, rc *registryv1alpha1.RegistryCredential) (*registryv1alpha1.Project, *registryv1alpha1.Registry, *harbor.Client, error) {
 	project := &registryv1alpha1.Project{}
 	if err := r.Get(ctx, client.ObjectKey{Namespace: rc.Namespace, Name: rc.Spec.ProjectRef.Name}, project); err != nil {
-		return nil, nil, nil, fmt.Errorf("reading project %s: %w", rc.Spec.ProjectRef.Name, err)
+		return nil, nil, nil, fmt.Errorf("reading project %s: %w", rc.Spec.ProjectRef.Name, gone(err))
 	}
 	reg := &registryv1alpha1.Registry{}
 	if err := r.Get(ctx, client.ObjectKey{Namespace: rc.Namespace, Name: project.Spec.RegistryRef.Name}, reg); err != nil {
-		return nil, nil, nil, fmt.Errorf("reading registry %s: %w", project.Spec.RegistryRef.Name, err)
+		return nil, nil, nil, fmt.Errorf("reading registry %s: %w", project.Spec.RegistryRef.Name, gone(err))
 	}
 	hc, err := harborFor(ctx, r.Client, reg)
 	return project, reg, hc, err
+}
+
+// errGone marks a Project or Registry that no longer exists, so the robot
+// it held can only be left to expire.
+var errGone = errors.New("gone")
+
+func gone(err error) error {
+	if apierrors.IsNotFound(err) {
+		return fmt.Errorf("%w: %w", errGone, err)
+	}
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

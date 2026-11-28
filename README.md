@@ -50,10 +50,11 @@ Harbor is the only backend so far.
   Project names are global to the Registry, so a project the operator did not create, including one another namespace claimed first, is refused with a `Conflict` condition.
   Deleting the Project deletes the Harbor project only once it is empty, since what was pushed cannot be pulled again; until then the Project stays, reporting why.
 - `RegistryCredential` names a Project in its own namespace, `pull` or `push`, and a `secretName`.
-  The operator creates a Harbor robot scoped to that project, which can never delete and expires after 90 days, and writes `{"registry", "username", "password"}` as JSON to the secret `<namespace>--<secretName>` in the Azure Key Vault given by `--harbor-vault-url`, authenticated from the `AZURE_*` environment.
+  The operator creates a Harbor robot scoped to that project, which can never delete and expires after 90 days, and writes it as JSON, `{"registry": "harbor.example.com", "username": "robot$app+app-pull-1", "password": "..."}`, to the secret `<namespace>--<secretName>` in the Azure Key Vault given by `--harbor-vault-url`, authenticated from the `AZURE_*` environment.
   A write that fails is retried and reported on the `Ready` condition, and the robot is kept meanwhile.
   The spec is immutable, so a different login is a new RegistryCredential.
-  Deleting the RegistryCredential deletes the robot and the stored secret.
+  Deleting the RegistryCredential deletes the robot and the stored secret; if its Project or Registry is already gone, the robot is left to expire.
+  The stored secret is soft-deleted, and a RegistryCredential that later reuses its name recovers it before overwriting it, so the operator's identity needs Key Vault's recover permission.
 
 ## Development
 
