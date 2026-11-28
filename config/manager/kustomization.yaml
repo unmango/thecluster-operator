@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/unmango/thecluster-operator
-  newTag: v0.0.1
+  newTag: 0.1.4
