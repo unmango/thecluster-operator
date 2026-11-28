@@ -10,7 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  # Hercules CI builds Linux; the hosted jobs and the gate come from unmango/ci.
   nix:
     uses: unmango/ci/.github/workflows/nix-ci.yml@30ae545a17dc3cd88663c8d0aa92ae374b62779c
     permissions:
@@ -86,7 +85,7 @@ jobs:
 
   e2e:
     name: E2E Tests
-    # kind needs privileged nested containers, which the thecluster runners refuse.
+    # kind needs privileged containers, which thecluster runners refuse.
     runs-on: ubuntu-latest
     env:
       PIA_USER: ${{ secrets.PIA_USER }}
@@ -98,8 +97,7 @@ jobs:
 
       - uses: unmango/actions/setup-nix@e8bbcbd12a2c521c5cb36957c00a7a8f4fe2e766 # v2.0.0
         with:
-          # Nothing caches kubepkgs' x86_64 envtest binaries, so the devshell builds
-          # kube-apiserver and etcd once and the GitHub Actions cache keeps them.
+          # No binary cache has kubepkgs' x86_64 builds.
           magic_nix_cache: "true"
 
       - run: nix develop -c make kind-cluster
@@ -107,8 +105,7 @@ jobs:
 
   docker:
     name: Docker
-    # buildx's docker-container driver needs a privileged container, which the
-    # thecluster runners refuse.
+    # buildx's default driver needs privileged containers, which thecluster runners refuse.
     runs-on: ubuntu-latest
     steps:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -116,7 +113,7 @@ jobs:
 
   chart:
     name: E2E
-    # kind needs privileged nested containers, which the thecluster runners refuse.
+    # kind needs privileged containers, which thecluster runners refuse.
     runs-on: ubuntu-latest
     env:
       IMG: thecluster-operator:ci
@@ -129,8 +126,7 @@ jobs:
 
       - uses: unmango/actions/setup-nix@e8bbcbd12a2c521c5cb36957c00a7a8f4fe2e766 # v2.0.0
         with:
-          # Nothing caches kubepkgs' x86_64 envtest binaries, so the devshell builds
-          # kube-apiserver and etcd once and the GitHub Actions cache keeps them.
+          # No binary cache has kubepkgs' x86_64 builds.
           magic_nix_cache: "true"
 
       - run: nix develop -c make kind-cluster

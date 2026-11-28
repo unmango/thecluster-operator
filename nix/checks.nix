@@ -9,8 +9,7 @@
   symlinkJoin,
 }:
 let
-  # kube-apiserver derives its advertise address from the default route, and
-  # the sandbox has only loopback.
+  # The sandbox has no default route for kube-apiserver to advertise.
   sandboxEnvtest = symlinkJoin {
     name = "${envtest.name}-sandbox";
     paths = [ envtest ];
@@ -53,17 +52,15 @@ let
 in
 {
   test = check "test" ''
-    # controller-gen's paths=./... loads every nested go.mod as a root, and
-    # gomod2nix's vendor/ keeps the modules' go.mod and go.work files.
+    # controller-gen loads each vendored module's go.mod as a root.
     chmod -R u+w vendor
     find vendor \( -name go.mod -o -name go.work \) -delete
-    # A vendored build carries no module version, and controller-gen stamps
-    # its version into every CRD.
+    # controller-gen stamps its version into every CRD, and a vendored build has none.
     go build -o "$TMPDIR/controller-gen" \
       -ldflags "-X sigs.k8s.io/controller-tools/pkg/version.version=${controllerTools}" \
       sigs.k8s.io/controller-tools/cmd/controller-gen
     ${make} test CONTROLLER_GEN="$TMPDIR/controller-gen"
-    # CI's git status check: manifests and generate must not change or add a file.
+    # Generated files must match the committed source.
     diff -r --exclude=vendor --exclude=cover.out "$src" .
   '';
 
