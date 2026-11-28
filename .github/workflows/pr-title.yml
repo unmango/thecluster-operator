@@ -14,7 +14,7 @@ jobs:
   # main. release-please parses those subjects; a title without a Conventional
   # Commits type never reaches a release.
   conventional-commits:
-    runs-on: thecluster
+    runs-on: ubuntu-latest
     steps:
       - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
         env:

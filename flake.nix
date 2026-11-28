@@ -22,6 +22,21 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    gomod2nix = {
+      url = "github:nix-community/gomod2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.inputs.systems.follows = "systems";
+    };
+
+    mynix = {
+      url = "github:unstoppablemango/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+      inputs.gomod2nix.follows = "gomod2nix";
+      inputs.systems.follows = "systems";
+      inputs.treefmt-nix.follows = "treefmt-nix";
+    };
   };
 
   outputs =
@@ -32,6 +47,7 @@
       imports = with inputs; [
         systems.flakeModule
         treefmt-nix.flakeModule
+        mynix.flakeModules.ci
       ];
 
       perSystem =
@@ -55,6 +71,13 @@
         {
           packages.envtest = envtest;
 
+          ci.fixup.steps = [ "nix develop --command make manifests generate" ];
+
+          checks = pkgs.callPackages ./nix/checks.nix {
+            inherit (inputs'.gomod2nix.legacyPackages) buildGoApplication;
+            inherit envtest;
+          };
+
           devShells.default = pkgs.mkShellNoCC {
             packages = with pkgs; [
               direnv
@@ -62,6 +85,7 @@
               go
               kubernetes-helm
               nixfmt
+              inputs'.gomod2nix.packages.default
               k8s.kubectl
               k8s.sigs.kind
               k8s.sigs.kustomize
