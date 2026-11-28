@@ -48,10 +48,10 @@ var _ = Describe("Project Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	newProject := func(ctx context.Context, name string) *registryv1alpha1.Project {
+	newProject := func(ctx context.Context, name, registry string) *registryv1alpha1.Project {
 		p := &registryv1alpha1.Project{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
-			Spec:       registryv1alpha1.ProjectSpec{RegistryRef: corev1.LocalObjectReference{Name: reg.Name}},
+			Spec:       registryv1alpha1.ProjectSpec{RegistryRef: corev1.LocalObjectReference{Name: registry}},
 		}
 		Expect(k8sClient.Create(ctx, p)).To(Succeed())
 		DeferCleanup(func(ctx context.Context) {
@@ -86,7 +86,7 @@ var _ = Describe("Project Controller", func() {
 	}
 
 	It("creates a private project", func(ctx SpecContext) {
-		p := reconcileProject(ctx, newProject(ctx, "mve"))
+		p := reconcileProject(ctx, newProject(ctx, "mve", reg.Name))
 
 		Expect(meta.IsStatusConditionTrue(p.Status.Conditions, TypeReady)).To(BeTrue())
 		Expect(p.Status.Endpoint).To(Equal("harbor.example.com/mve"))
@@ -100,7 +100,7 @@ var _ = Describe("Project Controller", func() {
 	})
 
 	It("puts back settings changed in Harbor", func(ctx SpecContext) {
-		p := newProject(ctx, "mve")
+		p := newProject(ctx, "mve", reg.Name)
 		reconcileProject(ctx, p)
 
 		fake.Mu.Lock()
@@ -116,7 +116,7 @@ var _ = Describe("Project Controller", func() {
 		fake.Projects["library"] = &harbor.Project{ProjectID: 99, Name: "library", Metadata: map[string]string{"public": "true"}}
 		fake.Mu.Unlock()
 
-		p := reconcileProject(ctx, newProject(ctx, "library"))
+		p := reconcileProject(ctx, newProject(ctx, "library", reg.Name))
 		Expect(readyReason(p)).To(Equal("Conflict"))
 		Expect(fake.Project("library").Metadata).To(HaveKeyWithValue("public", "true"))
 
@@ -126,19 +126,14 @@ var _ = Describe("Project Controller", func() {
 	})
 
 	It("reports a missing Registry", func(ctx SpecContext) {
-		p := newProject(ctx, "orphan")
-		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(p), p)).To(Succeed())
-		p.Spec.RegistryRef.Name = "missing"
-		Expect(k8sClient.Update(ctx, p)).To(Succeed())
-
-		p = reconcileProject(ctx, p)
+		p := reconcileProject(ctx, newProject(ctx, "orphan", "missing"))
 		cond := meta.FindStatusCondition(p.Status.Conditions, TypeReady)
 		Expect(cond.Status).To(Equal(metav1.ConditionFalse))
 		Expect(cond.Message).To(ContainSubstring("missing"))
 	})
 
 	It("deletes the project on deletion", func(ctx SpecContext) {
-		p := newProject(ctx, "mve")
+		p := newProject(ctx, "mve", reg.Name)
 		reconcileProject(ctx, p)
 
 		Expect(k8sClient.Delete(ctx, p)).To(Succeed())
@@ -147,7 +142,7 @@ var _ = Describe("Project Controller", func() {
 	})
 
 	It("keeps pushed images, waiting for the project to be emptied", func(ctx SpecContext) {
-		p := newProject(ctx, "mve")
+		p := newProject(ctx, "mve", reg.Name)
 		reconcileProject(ctx, p)
 
 		fake.Mu.Lock()
