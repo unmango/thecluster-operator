@@ -229,13 +229,13 @@ func (r *RegistryCredentialReconciler) finalize(ctx context.Context, rc *registr
 			return err
 		}
 	}
-	switch {
-	case r.Store != nil:
-		if err := r.Store.Delete(ctx, vaultName(rc)); err != nil {
-			return fmt.Errorf("deleting secret %s: %w", vaultName(rc), err)
-		}
-	case rc.Status.Robot != nil && rc.Status.Robot.Written != nil:
+	// A write can land without its status update, so status cannot prove
+	// that nothing is stored; without a store the finalizer waits for one.
+	if r.Store == nil {
 		return fmt.Errorf("no secret store to delete %s from", vaultName(rc))
+	}
+	if err := r.Store.Delete(ctx, vaultName(rc)); err != nil {
+		return fmt.Errorf("deleting secret %s: %w", vaultName(rc), err)
 	}
 
 	controllerutil.RemoveFinalizer(rc, RegistryCredentialFinalizer)
