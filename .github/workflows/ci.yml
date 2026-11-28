@@ -1,18 +1,41 @@
 name: CI
 
 on:
-  pull_request:
+  push:
     branches: [main]
+  pull_request:
 
 # Nothing here writes to the repository; checks and tests only read it.
 permissions:
   contents: read
 
 jobs:
+  # Hercules CI builds Linux; the hosted jobs and the gate come from unmango/ci.
+  nix:
+    uses: unmango/ci/.github/workflows/nix-ci.yml@30ae545a17dc3cd88663c8d0aa92ae374b62779c
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: write
+      statuses: read
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+  required:
+    needs: [nix, e2e, docker, chart]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success" or .result == "skipped")' <<<"$NEEDS"
+
   # The display names on the jobs below are what the repository ruleset
   # requires as status checks; renaming one breaks merging until the ruleset
   # is updated to match.
-  nix:
+  flake-check:
+    name: nix
     runs-on: thecluster
     # The runner image ships nix, so nothing installs it here. Its
     # /etc/nix/nix.conf enables flakes, and the scale set sets NIX_CONFIG on
@@ -28,7 +51,7 @@ jobs:
 
   # The devshell supplies go, kind, kustomize, kubectl and the envtest
   # binaries from unmango/kubepkgs, so every job below runs inside it. Those
-  # come from ncps through the runner pod's NIX_CONFIG, as noted on nix.
+  # come from ncps through the runner pod's NIX_CONFIG, as noted on flake-check.
   test:
     name: Build and Test
     runs-on: thecluster
@@ -90,3 +113,47 @@ jobs:
     steps:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+
+  chart:
+    name: E2E
+    # kind needs privileged nested containers, which the thecluster runners refuse.
+    runs-on: ubuntu-latest
+    env:
+      IMG: thecluster-operator:ci
+      # renovate: datasource=github-releases depName=cert-manager/cert-manager
+      CERT_MANAGER_VERSION: 1.21.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: unmango/actions/setup-nix@e8bbcbd12a2c521c5cb36957c00a7a8f4fe2e766 # v2.0.0
+        with:
+          # Nothing caches kubepkgs' x86_64 envtest binaries, so the devshell builds
+          # kube-apiserver and etcd once and the GitHub Actions cache keeps them.
+          magic_nix_cache: "true"
+
+      - run: nix develop -c make kind-cluster
+
+      - name: Load image into kind
+        run: |
+          nix develop -c make docker-build
+          nix develop -c kind load docker-image "$IMG" --name thecluster-operator
+
+      - run: nix develop -c helm lint ./dist/chart
+
+      - name: Install cert-manager
+        run: |
+          nix develop -c helm install cert-manager oci://quay.io/jetstack/charts/cert-manager \
+            --version "v$CERT_MANAGER_VERSION" \
+            --namespace cert-manager --create-namespace \
+            --set crds.enabled=true \
+            --wait
+
+      - name: Install chart
+        run: |
+          nix develop -c helm install thecluster-operator ./dist/chart \
+            --namespace thecluster-operator-system --create-namespace \
+            --set controllerManager.container.image.repository="${IMG%:*}" \
+            --set controllerManager.container.image.tag="${IMG#*:}"
+          nix develop -c helm status thecluster-operator --namespace thecluster-operator-system
