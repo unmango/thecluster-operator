@@ -78,6 +78,8 @@ spec:
                 x-kubernetes-validations:
                 - message: registryRef is immutable
                   rule: self == oldSelf
+                - message: name is required
+                  rule: self.name != ''
             required:
             - registryRef
             type: object

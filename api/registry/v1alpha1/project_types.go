@@ -28,6 +28,7 @@ type ProjectSpec struct {
 	// this project. It is immutable, since the recorded project and robot
 	// ids mean nothing on another backend.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="registryRef is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.name != ''",message="name is required"
 	RegistryRef corev1.LocalObjectReference `json:"registryRef"`
 }
 

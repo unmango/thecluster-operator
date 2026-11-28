@@ -38,6 +38,7 @@ const (
 type RegistryCredentialSpec struct {
 	// ProjectRef names the Project, in the same namespace, the credential
 	// reaches. A credential cannot reach a project in another namespace.
+	// +kubebuilder:validation:XValidation:rule="self.name != ''",message="name is required"
 	ProjectRef corev1.LocalObjectReference `json:"projectRef"`
 
 	// Access is pull, or push, which can also pull.
